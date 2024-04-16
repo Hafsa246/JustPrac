@@ -1,0 +1,24 @@
+import win32com.client
+
+def count_emails_by_subject(subjects):
+    outlook = win32com.client.Dispatch("Outlook.Application").GetNamespace("MAPI")
+    inbox = outlook.GetDefaultFolder(6)  # 6 corresponds to the Inbox folder
+
+    counts = {}
+    for subject in subjects:
+        # Restrict emails based on subject
+        restriction = "[Subject] = '{}'".format(subject)
+        emails = inbox.Items.Restrict(restriction)
+
+        # Count the number of emails for this subject
+        count = len(emails)
+        counts[subject] = count
+
+    return counts
+
+if __name__ == "__main__":
+    subjects = ["Subject1", "Subject2", "Subject3"]  # Add your subject names here
+    counts = count_emails_by_subject(subjects)
+    
+    for subject, count in counts.items():
+        print("Number of emails with subject '{}': {}".format(subject, count))
