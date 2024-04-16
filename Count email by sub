@@ -7,9 +7,14 @@ def count_emails_by_subject(subjects, date_to_check):
 
     counts = {}
     for subject in subjects:
+        # Format date_to_check as a string compatible with Outlook's Restrict method
+        date_str = date_to_check.strftime('%m/%d/%Y %H:%M:%S')
+
         # Restrict emails based on subject and date
-        restriction = "[Subject] = '{}' AND [ReceivedTime] >= '{}'".format(subject, date_to_check)
+        restriction = "[Subject] = '{}' AND [ReceivedTime] >= '{}'".format(subject, date_str)
+        print("Restriction:", restriction)
         emails = inbox.Items.Restrict(restriction)
+        print("Number of emails retrieved:", len(emails))
 
         # Count the number of emails for this subject
         count = len(emails)
@@ -20,9 +25,11 @@ def count_emails_by_subject(subjects, date_to_check):
 if __name__ == "__main__":
     subjects = ["Subject1", "Subject2", "Subject3"]  # Add your subject names here
     date_to_check = datetime.datetime.now() - datetime.timedelta(days=1)  # Date to check, one day before
+    print("Date to check:", date_to_check)
     
     counts = count_emails_by_subject(subjects, date_to_check)
     
     for subject, count in counts.items():
         print("Number of emails with subject '{}' received on {}: {}".format(subject, date_to_check.date(), count))
+
 
