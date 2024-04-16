@@ -1,13 +1,14 @@
 import win32com.client
+import datetime
 
-def count_emails_by_subject(subjects):
+def count_emails_by_subject(subjects, date_to_check):
     outlook = win32com.client.Dispatch("Outlook.Application").GetNamespace("MAPI")
     inbox = outlook.GetDefaultFolder(6)  # 6 corresponds to the Inbox folder
 
     counts = {}
     for subject in subjects:
-        # Restrict emails based on subject
-        restriction = "[Subject] = '{}'".format(subject)
+        # Restrict emails based on subject and date
+        restriction = "[Subject] = '{}' AND [ReceivedTime] >= '{}'".format(subject, date_to_check)
         emails = inbox.Items.Restrict(restriction)
 
         # Count the number of emails for this subject
@@ -18,7 +19,10 @@ def count_emails_by_subject(subjects):
 
 if __name__ == "__main__":
     subjects = ["Subject1", "Subject2", "Subject3"]  # Add your subject names here
-    counts = count_emails_by_subject(subjects)
+    date_to_check = datetime.datetime.now() - datetime.timedelta(days=1)  # Date to check, one day before
+    
+    counts = count_emails_by_subject(subjects, date_to_check)
     
     for subject, count in counts.items():
-        print("Number of emails with subject '{}': {}".format(subject, count))
+        print("Number of emails with subject '{}' received on {}: {}".format(subject, date_to_check.date(), count))
+
