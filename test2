@@ -1,0 +1,39 @@
+import win32com.client
+import datetime
+
+# Initialize Outlook
+outlook = win32com.client.Dispatch("Outlook.Application").GetNamespace("MAPI")
+inbox = outlook.GetDefaultFolder(6)  # "6" refers to the Inbox folder
+
+# Initialize dictionaries to store counts
+sender_counts = {}
+subject_counts = {}
+
+# Get today's date
+today = datetime.datetime.today()
+
+# Calculate the date for the previous day
+previous_day = today - datetime.timedelta(days=1)
+
+# Loop through each email in the inbox
+for email in inbox.Items:
+    # Check if the email was received on the previous day
+    if email.ReceivedTime.date() == previous_day.date():
+        sender = email.SenderEmailAddress
+        subject = email.Subject
+        
+        # Count sender emails
+        sender_counts[sender] = sender_counts.get(sender, 0) + 1
+        
+        # Count subjects
+        subject_counts[subject] = subject_counts.get(subject, 0) + 1
+
+# Print sender counts
+print("Sender Counts:")
+for sender, count in sender_counts.items():
+    print(f"{sender}: {count}")
+
+# Print subject counts
+print("\nSubject Counts:")
+for subject, count in subject_counts.items():
+    print(f"{subject}: {count}")
