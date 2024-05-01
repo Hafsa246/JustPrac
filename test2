@@ -18,7 +18,7 @@ def count_emails_by_sender(sender_emails, date_to_check):
         restriction = "[SenderEmailAddress] = '{}' AND [ReceivedTime] >= '{}' AND [ReceivedTime] < '{}'".format(sender_email, previous_day_str, date_str)
         print("Restriction:", restriction)
         emails = inbox.Items.Restrict(restriction)
-        print("Number of emails retrieved:", len(emails))
+        print("Number of emails retrieved from sender {}: {}".format(sender_email, len(emails)))
 
         # Count the number of emails from this sender
         count = len(emails)
@@ -35,4 +35,3 @@ if __name__ == "__main__":
     
     for sender_email, count in counts.items():
         print("Number of emails from sender '{}' received on the previous day: {}".format(sender_email, count))
-
