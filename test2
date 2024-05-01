@@ -1,39 +1,38 @@
 import win32com.client
 import datetime
 
-# Initialize Outlook
-outlook = win32com.client.Dispatch("Outlook.Application").GetNamespace("MAPI")
-inbox = outlook.GetDefaultFolder(6)  # "6" refers to the Inbox folder
+def count_emails_by_sender(sender_emails, date_to_check):
+    outlook = win32com.client.Dispatch("Outlook.Application").GetNamespace("MAPI")
+    inbox = outlook.GetDefaultFolder(6)  # 6 corresponds to the Inbox folder
 
-# Initialize dictionaries to store counts
-sender_counts = {}
-subject_counts = {}
+    counts = {}
+    for sender_email in sender_emails:
+        # Format date_to_check as a string compatible with Outlook's Restrict method
+        date_str = date_to_check.strftime('%m/%d/%Y')
 
-# Get today's date
-today = datetime.datetime.today()
+        # Calculate the date for the previous day
+        previous_day = date_to_check - datetime.timedelta(days=1)
+        previous_day_str = previous_day.strftime('%m/%d/%Y')
 
-# Calculate the date for the previous day
-previous_day = today - datetime.timedelta(days=1)
+        # Restrict emails based on sender email and date (from previous day)
+        restriction = "[SenderEmailAddress] = '{}' AND [ReceivedTime] >= '{}' AND [ReceivedTime] < '{}'".format(sender_email, previous_day_str, date_str)
+        print("Restriction:", restriction)
+        emails = inbox.Items.Restrict(restriction)
+        print("Number of emails retrieved:", len(emails))
 
-# Loop through each email in the inbox
-for email in inbox.Items:
-    # Check if the email was received on the previous day
-    if email.ReceivedTime.date() == previous_day.date():
-        sender = email.SenderEmailAddress
-        subject = email.Subject
-        
-        # Count sender emails
-        sender_counts[sender] = sender_counts.get(sender, 0) + 1
-        
-        # Count subjects
-        subject_counts[subject] = subject_counts.get(subject, 0) + 1
+        # Count the number of emails from this sender
+        count = len(emails)
+        counts[sender_email] = count
 
-# Print sender counts
-print("Sender Counts:")
-for sender, count in sender_counts.items():
-    print(f"{sender}: {count}")
+    return counts
 
-# Print subject counts
-print("\nSubject Counts:")
-for subject, count in subject_counts.items():
-    print(f"{subject}: {count}")
+if __name__ == "__main__":
+    sender_emails = ["sender1@example.com", "sender2@example.com"]  # Add sender email addresses here
+    date_to_check = datetime.datetime.now()  # Current date
+    print("Date to check:", date_to_check)
+    
+    counts = count_emails_by_sender(sender_emails, date_to_check)
+    
+    for sender_email, count in counts.items():
+        print("Number of emails from sender '{}' received on the previous day: {}".format(sender_email, count))
+
