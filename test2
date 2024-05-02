@@ -12,13 +12,13 @@ def count_emails_by_sender(subfolder_path, date_to_check):
 
     # Calculate the date for the previous day
     previous_day = date_to_check - datetime.timedelta(days=1)
-    previous_day_start = datetime.datetime(previous_day.year, previous_day.month, previous_day.day, 0, 0, 0)
-    previous_day_end = datetime.datetime(previous_day.year, previous_day.month, previous_day.day, 23, 59, 59)
+    previous_day_start = previous_day.replace(hour=0, minute=0, second=0, microsecond=0)  # Make timezone-naive
+    previous_day_end = previous_day.replace(hour=23, minute=59, second=59, microsecond=999)  # Make timezone-naive
 
     for item in subfolder.Items:
         try:
             if item.Class == 43:  # Mail item class
-                received_time = item.ReceivedTime
+                received_time = item.ReceivedTime.replace(tzinfo=None)  # Make timezone-naive
                 sender_email = item.SenderEmailAddress
 
                 # Check if the email falls within the specified date range
