@@ -15,7 +15,7 @@ def count_emails_by_sender(sender_emails, date_to_check):
     for item in inbox.Items:
         try:
             if item.Class == 43:  # Mail item class
-                received_time = item.ReceivedTime
+                received_time = item.ReceivedTime.replace(tzinfo=None)  # Make received_time timezone-naive
                 sender_email = item.SenderEmailAddress
                 if previous_day_start <= received_time <= previous_day_end and sender_email in sender_emails:
                     counts[sender_email] += 1
