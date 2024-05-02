@@ -15,6 +15,10 @@ def count_emails_by_sender(subfolder_path, date_to_check):
     previous_day_start = previous_day.replace(hour=0, minute=0, second=0, microsecond=0)  # Make timezone-naive
     previous_day_end = previous_day.replace(hour=23, minute=59, second=59, microsecond=999)  # Make timezone-naive
 
+    print("Date range for counting emails:")
+    print("Start:", previous_day_start)
+    print("End:", previous_day_end)
+
     for item in subfolder.Items:
         try:
             if item.Class == 43:  # Mail item class
@@ -36,5 +40,8 @@ if __name__ == "__main__":
 
     counts = count_emails_by_sender(subfolder_path, date_to_check)
 
-    for sender_email, count in counts.items():
-        print("Number of emails from sender '{}' received on the previous day: {}".format(sender_email, count))
+    if counts:
+        for sender_email, count in counts.items():
+            print("Number of emails from sender '{}' received on the previous day: {}".format(sender_email, count))
+    else:
+        print("No emails found that match the criteria.")
