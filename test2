@@ -13,11 +13,14 @@ def count_emails_by_sender(sender_emails, date_to_check):
     previous_day_end = previous_day.replace(hour=23, minute=59, second=59)
 
     for item in inbox.Items:
-        if item.Class == 43:  # Mail item class
-            received_time = item.ReceivedTime
-            sender_email = item.SenderEmailAddress
-            if previous_day_start <= received_time <= previous_day_end and sender_email in sender_emails:
-                counts[sender_email] += 1
+        try:
+            if item.Class == 43:  # Mail item class
+                received_time = item.ReceivedTime
+                sender_email = item.SenderEmailAddress
+                if previous_day_start <= received_time <= previous_day_end and sender_email in sender_emails:
+                    counts[sender_email] += 1
+        except Exception as e:
+            print(f"Error processing email: {e}")
 
     return counts
 
