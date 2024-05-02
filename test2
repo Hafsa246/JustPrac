@@ -1,12 +1,12 @@
 import win32com.client
 import datetime
 
-def count_emails_by_sender(sender_emails, date_to_check):
+def count_emails_by_subject(subjects, date_to_check):
     outlook = win32com.client.Dispatch("Outlook.Application").GetNamespace("MAPI")
     inbox = outlook.GetDefaultFolder(6)  # 6 corresponds to the Inbox folder
 
     counts = {}
-    for sender_email in sender_emails:
+    for subject in subjects:
         try:
             # Format date_to_check as a string compatible with Outlook's Restrict method
             date_str = date_to_check.strftime('%m/%d/%Y')
@@ -15,26 +15,47 @@ def count_emails_by_sender(sender_emails, date_to_check):
             previous_day = date_to_check - datetime.timedelta(days=1)
             previous_day_str = previous_day.strftime('%m/%d/%Y')
 
-            # Restrict emails based on sender email and date (from previous day)
-            restriction = "[SenderEmailAddress] = '{}' AND [ReceivedTime] >= '{}' AND [ReceivedTime] < '{}'".format(sender_email, previous_day_str, date_str)
+            # Restrict emails based on subject and date (from previous day)
+            restriction = "[Subject] = '{}' AND [ReceivedTime] >= '{}' AND [ReceivedTime] < '{}'".format(subject, previous_day_str, date_str)
             print("Restriction:", restriction)
             emails = inbox.Items.Restrict(restriction)
-            print("Number of emails retrieved:", len(emails))
 
-            # Count the number of emails for this sender
+            # Initialize a dictionary to store sender emails for this subject
+            sender_emails = {}
+
+            # Iterate through filtered emails and collect sender email addresses
+            for email in emails:
+                sender_email = email.SenderEmailAddress
+                if sender_email not in sender_emails:
+                    sender_emails[sender_email] = 1
+                else:
+                    sender_emails[sender_email] += 1
+
+            print("Sender emails for subject '{}':".format(subject))
+            for sender_email, count in sender_emails.items():
+                print("- {}: {}".format(sender_email, count))
+
+            # Count the total number of emails for this subject
             count = len(emails)
-            counts[sender_email] = count
+            counts[subject] = {
+                'count': count,
+                'sender_emails': sender_emails
+            }
         except Exception as e:
-            print(f"Error counting emails for sender '{sender_email}': {e}")
+            print(f"Error counting emails for subject '{subject}': {e}")
 
     return counts
 
 if __name__ == "__main__":
-    sender_emails = ["sender1@example.com", "sender2@example.com"]  # Add sender email addresses here
+    subjects = ["Subject1", "Subject2", "Subject3"]  # Add your subject names here
     date_to_check = datetime.datetime.now()  # Current date
     print("Date to check:", date_to_check)
     
-    counts = count_emails_by_sender(sender_emails, date_to_check)
+    counts = count_emails_by_subject(subjects, date_to_check)
     
-    for sender_email, count in counts.items():
-        print("Number of emails from sender '{}' received on the previous day: {}".format(sender_email, count))
+    for subject, info in counts.items():
+        print("Subject: '{}'".format(subject))
+        print("Total number of emails: {}".format(info['count']))
+        print("Sender emails:")
+        for sender_email, count in info['sender_emails'].items():
+            print("- {}: {}".format(sender_email, count))
