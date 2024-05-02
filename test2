@@ -1,46 +1,40 @@
 import win32com.client
 import datetime
 
-def count_emails_by_address_book_entry(address_book_entries, date_to_check):
+def count_emails_by_sender(subfolder_path, date_to_check):
     outlook = win32com.client.Dispatch("Outlook.Application").GetNamespace("MAPI")
-    inbox = outlook.GetDefaultFolder(6)  # 6 corresponds to the Inbox folder
+    inbox = outlook.GetDefaultFolder(6)  # Inbox folder
+
+    # Get the specified subfolder within the Inbox
+    subfolder = inbox.Folders.Item(subfolder_path)
 
     counts = {}
-    for entry in address_book_entries:
+
+    # Calculate the date for the previous day
+    previous_day = date_to_check - datetime.timedelta(days=1)
+    previous_day_start = datetime.datetime(previous_day.year, previous_day.month, previous_day.day, 0, 0, 0)
+    previous_day_end = datetime.datetime(previous_day.year, previous_day.month, previous_day.day, 23, 59, 59)
+
+    for item in subfolder.Items:
         try:
-            # Format date_to_check as a string compatible with Outlook's Restrict method
-            date_str = date_to_check.strftime('%m/%d/%Y 11:59 PM')
+            if item.Class == 43:  # Mail item class
+                received_time = item.ReceivedTime
+                sender_email = item.SenderEmailAddress
 
-            # Calculate the date for the previous day
-            previous_day = date_to_check - datetime.timedelta(days=1)
-            previous_day_start = previous_day.replace(hour=0, minute=0, second=0)
-            previous_day_end = previous_day.replace(hour=23, minute=59, second=59)
-
-            previous_day_start_str = previous_day_start.strftime('%m/%d/%Y %I:%M %p')
-            previous_day_end_str = previous_day_end.strftime('%m/%d/%Y %I:%M %p')
-
-            # Construct the restriction to filter emails based on the sender's address
-            restriction = "[SenderEmailAddress] = '{}' AND [ReceivedTime] >= '{}' AND [ReceivedTime] <= '{}'".format(entry, previous_day_start_str, previous_day_end_str)
-            print("Restriction:", restriction)
-
-            # Restrict emails based on the address book entry's email address and date (from previous day)
-            emails = inbox.Items.Restrict(restriction)
-            print("Number of emails retrieved from address book entry '{}': {}".format(entry, len(emails)))
-
-            # Count the number of emails from this address book entry
-            count = len(emails)
-            counts[entry] = count
+                # Check if the email falls within the specified date range
+                if previous_day_start <= received_time <= previous_day_end:
+                    counts[sender_email] = counts.get(sender_email, 0) + 1
         except Exception as e:
-            print(f"Error counting emails for address book entry '{entry}': {e}")
+            print(f"Error processing email: {e}")
 
     return counts
 
 if __name__ == "__main__":
-    address_book_entries = ["John Doe", "Jane Smith"]  # Add address book entries here
+    subfolder_path = "Subfolder Name"  # Specify the subfolder name
     date_to_check = datetime.datetime.now()  # Current date
     print("Date to check:", date_to_check)
-    
-    counts = count_emails_by_address_book_entry(address_book_entries, date_to_check)
-    
-    for entry, count in counts.items():
-        print("Number of emails from address book entry '{}' received on the previous day: {}".format(entry, count))
+
+    counts = count_emails_by_sender(subfolder_path, date_to_check)
+
+    for sender_email, count in counts.items():
+        print("Number of emails from sender '{}' received on the previous day: {}".format(sender_email, count))
