@@ -9,8 +9,8 @@ def count_emails_by_sender(sender_emails, date_to_check):
 
     # Calculate the date for the previous day
     previous_day = date_to_check - datetime.timedelta(days=1)
-    previous_day_start = previous_day.replace(hour=0, minute=0, second=0)
-    previous_day_end = previous_day.replace(hour=23, minute=59, second=59)
+    previous_day_start = datetime.datetime(previous_day.year, previous_day.month, previous_day.day, 0, 0, 0)
+    previous_day_end = datetime.datetime(previous_day.year, previous_day.month, previous_day.day, 23, 59, 59)
 
     for item in inbox.Items:
         try:
