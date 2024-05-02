@@ -8,14 +8,18 @@ def count_emails_by_sender(sender_emails, date_to_check):
     counts = {}
     for sender_email in sender_emails:
         # Format date_to_check as a string compatible with Outlook's Restrict method
-        date_str = date_to_check.strftime('%m/%d/%Y')
+        date_str = date_to_check.strftime('%m/%d/%Y 11:59 PM')
 
         # Calculate the date for the previous day
         previous_day = date_to_check - datetime.timedelta(days=1)
-        previous_day_str = previous_day.strftime('%m/%d/%Y')
+        previous_day_start = previous_day.replace(hour=0, minute=0, second=0)
+        previous_day_end = previous_day.replace(hour=23, minute=59, second=59)
+
+        previous_day_start_str = previous_day_start.strftime('%m/%d/%Y %I:%M %p')
+        previous_day_end_str = previous_day_end.strftime('%m/%d/%Y %I:%M %p')
 
         # Restrict emails based on sender email and date (from previous day)
-        restriction = "[SenderEmailAddress] = '{}' AND [ReceivedTime] >= '{}' AND [ReceivedTime] < '{}'".format(sender_email, previous_day_str, date_str)
+        restriction = "[SenderEmailAddress] = '{}' AND [ReceivedTime] >= '{}' AND [ReceivedTime] <= '{}'".format(sender_email, previous_day_start_str, previous_day_end_str)
         print("Restriction:", restriction)
         emails = inbox.Items.Restrict(restriction)
         print("Number of emails retrieved from sender {}: {}".format(sender_email, len(emails)))
