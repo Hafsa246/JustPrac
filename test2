@@ -8,15 +8,16 @@ def count_emails_by_sender(sender_emails, display_emails, date_to_check):
     counts = {}
     for sender_email, display_email in zip(sender_emails, display_emails):
         try:
-            # Format date_to_check as a string compatible with Outlook's Restrict method
-            date_str = date_to_check.strftime('%m/%d/%Y')
+            # Calculate the date range for the previous day
+            previous_day_start = datetime.datetime(date_to_check.year, date_to_check.month, date_to_check.day, 0, 0, 0) - datetime.timedelta(days=1)
+            previous_day_end = datetime.datetime(date_to_check.year, date_to_check.month, date_to_check.day, 23, 59, 59) - datetime.timedelta(days=1)
 
-            # Calculate the date for the previous day
-            previous_day = date_to_check - datetime.timedelta(days=1)
-            previous_day_str = previous_day.strftime('%m/%d/%Y')
+            # Format date strings
+            previous_day_start_str = previous_day_start.strftime('%m/%d/%Y %I:%M %p')
+            previous_day_end_str = previous_day_end.strftime('%m/%d/%Y %I:%M %p')
 
-            # Restrict emails based on sender email and date (from previous day)
-            restriction = "[SenderEmailAddress] = '{}' AND [ReceivedTime] >= '{}' AND [ReceivedTime] < '{}'".format(sender_email, previous_day_str, date_str)
+            # Restrict emails based on sender email and date range (from previous day)
+            restriction = "[SenderEmailAddress] = '{}' AND [ReceivedTime] >= '{}' AND [ReceivedTime] <= '{}'".format(sender_email, previous_day_start_str, previous_day_end_str)
             print("Restriction:", restriction)
             emails = inbox.Items.Restrict(restriction)
             print("Number of emails retrieved:", len(emails))
@@ -33,7 +34,7 @@ if __name__ == "__main__":
     sender_emails = ["sender1@example.com", "sender2@example.com"]  # Add sender email addresses here
     display_emails = ["display1@example.com", "display2@example.com"]  # Add display email addresses here
     date_to_check = datetime.datetime.now()  # Current date
-    print("Date to check:", date_to_check)
+    print("Date to check (previous day):", date_to_check - datetime.timedelta(days=1))
     
     counts = count_emails_by_sender(sender_emails, display_emails, date_to_check)
     
