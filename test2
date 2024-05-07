@@ -46,11 +46,11 @@ if __name__ == "__main__":
     counts = count_emails_by_sender(sender_emails, display_emails, date_to_check)
 
     # Prepare email body
-    email_body = "Number of emails received from each sender on the previous day:\n\n"
+    email_body = "Number of emails received from each sender on {}:\n\n".format((date_to_check - datetime.timedelta(days=1)).strftime("%Y-%m-%d"))
     for display_email, count in counts.items():
         email_body += "Sender '{}': {}\n".format(display_email, count)
 
     # Send email via Outlook
     receiver_email = "receiver@example.com"  # Change this to the recipient's email address
-    subject = "Email Count Report for Previous Day"
+    subject = "Email Count Report for {}".format((date_to_check - datetime.timedelta(days=1)).strftime("%Y-%m-%d"))
     send_email_via_outlook(receiver_email, subject, email_body)
