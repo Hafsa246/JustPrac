@@ -30,13 +30,27 @@ def count_emails_by_sender(sender_emails, display_emails, date_to_check):
 
     return counts
 
+def send_email_via_outlook(receiver_email, subject, body):
+    outlook = win32com.client.Dispatch("Outlook.Application")
+    mail = outlook.CreateItem(0)
+    mail.To = receiver_email
+    mail.Subject = subject
+    mail.Body = body
+    mail.Send()
+
 if __name__ == "__main__":
     sender_emails = ["sender1@example.com", "sender2@example.com"]  # Add sender email addresses here
     display_emails = ["display1@example.com", "display2@example.com"]  # Add display email addresses here
     date_to_check = datetime.datetime.now()  # Current date
-    print("Date to check (previous day):", date_to_check - datetime.timedelta(days=1))
-    
+
     counts = count_emails_by_sender(sender_emails, display_emails, date_to_check)
-    
+
+    # Prepare email body
+    email_body = "Number of emails received from each sender on the previous day:\n\n"
     for display_email, count in counts.items():
-        print("Number of emails from sender '{}' received on the previous day: {}".format(display_email, count))
+        email_body += "Sender '{}': {}\n".format(display_email, count)
+
+    # Send email via Outlook
+    receiver_email = "receiver@example.com"  # Change this to the recipient's email address
+    subject = "Email Count Report for Previous Day"
+    send_email_via_outlook(receiver_email, subject, email_body)
