@@ -30,27 +30,28 @@ def count_emails_by_sender(sender_emails, display_emails, date_to_check):
 
     return counts
 
-def send_email_via_outlook(receiver_email, subject, body):
+def send_email_via_outlook(receiver_emails, subject, body):
     outlook = win32com.client.Dispatch("Outlook.Application")
-    mail = outlook.CreateItem(0)
-    mail.To = receiver_email
-    mail.Subject = subject
-    mail.Body = body
-    mail.Send()
+    for receiver_email in receiver_emails:
+        mail = outlook.CreateItem(0)
+        mail.To = receiver_email
+        mail.Subject = subject
+        mail.Body = body
+        mail.Send()
 
 if __name__ == "__main__":
     sender_emails = ["sender1@example.com", "sender2@example.com"]  # Add sender email addresses here
     display_emails = ["display1@example.com", "display2@example.com"]  # Add display email addresses here
+    receiver_emails = ["recipient1@example.com", "recipient2@example.com"]  # Add recipient email addresses here
     date_to_check = datetime.datetime.now()  # Current date
 
     counts = count_emails_by_sender(sender_emails, display_emails, date_to_check)
 
     # Prepare email body
-    email_body = "Number of emails received from each sender on {}:\n\n".format((date_to_check - datetime.timedelta(days=1)).strftime("%Y-%m-%d"))
+    email_body = "Number of emails received from each sender on {}:\n\n".format((date_to_check - datetime.timedelta(days=1)).strftime("%d-%m-%Y"))
     for display_email, count in counts.items():
         email_body += "Sender '{}': {}\n".format(display_email, count)
 
-    # Send email via Outlook
-    receiver_email = "receiver@example.com"  # Change this to the recipient's email address
-    subject = "Email Count Report for {}".format((date_to_check - datetime.timedelta(days=1)).strftime("%Y-%m-%d"))
-    send_email_via_outlook(receiver_email, subject, email_body)
+    # Send email via Outlook to multiple recipients
+    subject = "Email Count Report for {}".format((date_to_check - datetime.timedelta(days=1)).strftime("%d-%m-%Y"))
+    send_email_via_outlook(receiver_emails, subject, email_body)
