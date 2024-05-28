@@ -56,11 +56,11 @@ if __name__ == "__main__":
 
     # Prepare email body
     previous_month_str = first_day_of_previous_month.strftime("%B %Y")
-    email_body = f"Number of emails received from each sender in {previous_month_str}:\n\n"
+    email_body = f"Number of emails received from each sender in {previous_month_str} (from {first_day_of_previous_month.strftime('%d-%m-%Y')} to {last_day_of_previous_month.strftime('%d-%m-%Y')}):\n\n"
     for display_email, subjects in counts.items():
         email_body += f"Sender '{display_email}':\n"
         for subject, count in subjects.items():
-            email_body += f"  Subject '{subject}': {count}\n"
+            email_body += f"  {count} - Subject: '{subject}'\n"
         email_body += "\n"
 
     # Send email via Outlook to multiple recipients
