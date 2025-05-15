@@ -1,0 +1,17 @@
+private TXOdsTransactionHeader populateCounterPartyDetails(TXReferenceDataGenericDetails genericDetails,
+															   TXOdsTransactionHeader transactionHeader) {
+		TXOdsTransactionHeader transHeader = Objects.nonNull(transactionHeader) ? transactionHeader
+				: new TXOdsTransactionHeader();
+		if (Objects.nonNull(genericDetails)){
+			TXSFCounterPartyDetails counterPartyDetails = genericDetails.getCounterPartyDetails();
+
+			if (Objects.nonNull(counterPartyDetails)){
+				if(counterPartyDetails.getCounterPartyId()!=null && counterPartyDetails.getCounterPartyId().getValue()!=null) {
+					transHeader.setCounterPartyId(counterPartyDetails.getCounterPartyId());
+				}
+				transHeader.setCounterPartyName(counterPartyDetails.getCounterPartyName());
+				transHeader.setCounterPartyShortName(counterPartyDetails.getCounterPartyShortName());
+			}
+		}
+		return transHeader;
+	}
