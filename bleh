@@ -80,3 +80,53 @@ private TXOdsTransactionHeader populateCounterPartyDetails(TXReferenceDataGeneri
 			throw e;
 		}
 	}
+
+
+
+
+
+
+
+
+
+private TXOdsGenericDetails populateGenericDetails(TXL1GenericDetailsRetrievedEvent event,
+			TXOdsGenericDetails odsGenericDetails) {
+
+		if (Objects.nonNull(event.getGenericDetails())) {
+
+			TXReferenceDataGenericDetails txGenericDetails = event.getGenericDetails();
+
+			if (Objects.nonNull(txGenericDetails.getBcaTermsDetails())) {
+				odsGenericDetails.setBcaTermsDetails(
+						handleBcaTermDetails(txGenericDetails.getBcaTermsDetails(), odsGenericDetails));
+			}
+			odsGenericDetails.setProduct(txGenericDetails.getProduct());
+			odsGenericDetails.setSubStep(txGenericDetails.getSubStep());
+			if (Objects.nonNull(txGenericDetails.getBranchDetails())) {
+				odsGenericDetails
+						.setBranchDetails(handleBranchDetails(txGenericDetails.getBranchDetails(), odsGenericDetails));
+			}
+			odsGenericDetails.setCustomerID(txGenericDetails.getCustomerID());
+			odsGenericDetails.setLimitGroupID(txGenericDetails.getLimitGroupID());
+			odsGenericDetails.setTransactionCurrency(txGenericDetails.getTransactionCurrency());
+
+			if (Objects.nonNull(txGenericDetails.getTxBookingLocationDetails())) {
+				odsGenericDetails.setTxBookingLocationDetails(handleBookingLocationDetails(
+						txGenericDetails.getTxBookingLocationDetails(), odsGenericDetails));
+			}
+			if (Objects.nonNull(txGenericDetails.getFinanceTenorCheck())) {
+				odsGenericDetails.setFinanceTenorCheck(
+						handleFinanceTenorCheck(txGenericDetails.getFinanceTenorCheck(), odsGenericDetails));
+			}
+			if (Objects.nonNull(txGenericDetails.getProductDetails())) {
+				odsGenericDetails.setProductDetails(
+						handleProductDetails(txGenericDetails.getProductDetails(), odsGenericDetails));
+			}
+			if (Objects.nonNull(txGenericDetails.getCustomerDetails())) {
+				odsGenericDetails.setCustomerDetails(
+						handleCustomerDetails(txGenericDetails.getCustomerDetails(), odsGenericDetails));
+			}
+			odsGenericDetails.setCounterPartyDetails(txGenericDetails.getCounterPartyDetails());
+		}
+		return odsGenericDetails;
+	}
