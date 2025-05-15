@@ -1,0 +1,307 @@
+//
+// Source code recreated from a .class file by IntelliJ IDEA
+// (powered by FernFlower decompiler)
+//
+
+package com.sc.rd.counterPartyDetails.query.dto;
+
+import com.sc.model.TXCustomerID;
+import com.sc.model.TXPartyName;
+import com.sc.model.TXPartyShortName;
+import java.io.Serializable;
+import java.util.List;
+
+public class TXSFCounterPartyDetails implements Serializable {
+    private static final long serialVersionUID = 4859505268074058649L;
+    private TXCustomerID counterPartyId;
+    private TXPartyName counterPartyName;
+    private TXPartyShortName counterPartyShortName;
+    private TXCounterPartySupplierPreferences preferences;
+    private List<TXCounterPartyAccountDetails> accounts;
+    private List<TXCounterPartyAccountPreferences> accountsPreferences;
+    private List<TXCounterPartyCurrencyPreferences> currencyPreferences;
+    private List<TXCounterPartyFxPreferences> fxCheck;
+
+    protected TXSFCounterPartyDetails(TXSFCounterPartyDetailsBuilder<?, ?> b) {
+        this.counterPartyId = b.counterPartyId;
+        this.counterPartyName = b.counterPartyName;
+        this.counterPartyShortName = b.counterPartyShortName;
+        this.preferences = b.preferences;
+        this.accounts = b.accounts;
+        this.accountsPreferences = b.accountsPreferences;
+        this.currencyPreferences = b.currencyPreferences;
+        this.fxCheck = b.fxCheck;
+    }
+
+    public static TXSFCounterPartyDetailsBuilder<?, ?> builder() {
+        return new TXSFCounterPartyDetailsBuilderImpl();
+    }
+
+    public TXCustomerID getCounterPartyId() {
+        return this.counterPartyId;
+    }
+
+    public TXPartyName getCounterPartyName() {
+        return this.counterPartyName;
+    }
+
+    public TXPartyShortName getCounterPartyShortName() {
+        return this.counterPartyShortName;
+    }
+
+    public TXCounterPartySupplierPreferences getPreferences() {
+        return this.preferences;
+    }
+
+    public List<TXCounterPartyAccountDetails> getAccounts() {
+        return this.accounts;
+    }
+
+    public List<TXCounterPartyAccountPreferences> getAccountsPreferences() {
+        return this.accountsPreferences;
+    }
+
+    public List<TXCounterPartyCurrencyPreferences> getCurrencyPreferences() {
+        return this.currencyPreferences;
+    }
+
+    public List<TXCounterPartyFxPreferences> getFxCheck() {
+        return this.fxCheck;
+    }
+
+    public void setCounterPartyId(TXCustomerID counterPartyId) {
+        this.counterPartyId = counterPartyId;
+    }
+
+    public void setCounterPartyName(TXPartyName counterPartyName) {
+        this.counterPartyName = counterPartyName;
+    }
+
+    public void setCounterPartyShortName(TXPartyShortName counterPartyShortName) {
+        this.counterPartyShortName = counterPartyShortName;
+    }
+
+    public void setPreferences(TXCounterPartySupplierPreferences preferences) {
+        this.preferences = preferences;
+    }
+
+    public void setAccounts(List<TXCounterPartyAccountDetails> accounts) {
+        this.accounts = accounts;
+    }
+
+    public void setAccountsPreferences(List<TXCounterPartyAccountPreferences> accountsPreferences) {
+        this.accountsPreferences = accountsPreferences;
+    }
+
+    public void setCurrencyPreferences(List<TXCounterPartyCurrencyPreferences> currencyPreferences) {
+        this.currencyPreferences = currencyPreferences;
+    }
+
+    public void setFxCheck(List<TXCounterPartyFxPreferences> fxCheck) {
+        this.fxCheck = fxCheck;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        } else if (!(o instanceof TXSFCounterPartyDetails)) {
+            return false;
+        } else {
+            TXSFCounterPartyDetails other = (TXSFCounterPartyDetails)o;
+            if (!other.canEqual(this)) {
+                return false;
+            } else {
+                Object this$counterPartyId = this.getCounterPartyId();
+                Object other$counterPartyId = other.getCounterPartyId();
+                if (this$counterPartyId == null) {
+                    if (other$counterPartyId != null) {
+                        return false;
+                    }
+                } else if (!this$counterPartyId.equals(other$counterPartyId)) {
+                    return false;
+                }
+
+                Object this$counterPartyName = this.getCounterPartyName();
+                Object other$counterPartyName = other.getCounterPartyName();
+                if (this$counterPartyName == null) {
+                    if (other$counterPartyName != null) {
+                        return false;
+                    }
+                } else if (!this$counterPartyName.equals(other$counterPartyName)) {
+                    return false;
+                }
+
+                Object this$counterPartyShortName = this.getCounterPartyShortName();
+                Object other$counterPartyShortName = other.getCounterPartyShortName();
+                if (this$counterPartyShortName == null) {
+                    if (other$counterPartyShortName != null) {
+                        return false;
+                    }
+                } else if (!this$counterPartyShortName.equals(other$counterPartyShortName)) {
+                    return false;
+                }
+
+                Object this$preferences = this.getPreferences();
+                Object other$preferences = other.getPreferences();
+                if (this$preferences == null) {
+                    if (other$preferences != null) {
+                        return false;
+                    }
+                } else if (!this$preferences.equals(other$preferences)) {
+                    return false;
+                }
+
+                Object this$accounts = this.getAccounts();
+                Object other$accounts = other.getAccounts();
+                if (this$accounts == null) {
+                    if (other$accounts != null) {
+                        return false;
+                    }
+                } else if (!this$accounts.equals(other$accounts)) {
+                    return false;
+                }
+
+                Object this$accountsPreferences = this.getAccountsPreferences();
+                Object other$accountsPreferences = other.getAccountsPreferences();
+                if (this$accountsPreferences == null) {
+                    if (other$accountsPreferences != null) {
+                        return false;
+                    }
+                } else if (!this$accountsPreferences.equals(other$accountsPreferences)) {
+                    return false;
+                }
+
+                Object this$currencyPreferences = this.getCurrencyPreferences();
+                Object other$currencyPreferences = other.getCurrencyPreferences();
+                if (this$currencyPreferences == null) {
+                    if (other$currencyPreferences != null) {
+                        return false;
+                    }
+                } else if (!this$currencyPreferences.equals(other$currencyPreferences)) {
+                    return false;
+                }
+
+                Object this$fxCheck = this.getFxCheck();
+                Object other$fxCheck = other.getFxCheck();
+                if (this$fxCheck == null) {
+                    if (other$fxCheck != null) {
+                        return false;
+                    }
+                } else if (!this$fxCheck.equals(other$fxCheck)) {
+                    return false;
+                }
+
+                return true;
+            }
+        }
+    }
+
+    protected boolean canEqual(Object other) {
+        return other instanceof TXSFCounterPartyDetails;
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        Object $counterPartyId = this.getCounterPartyId();
+        result = result * 59 + ($counterPartyId == null ? 43 : $counterPartyId.hashCode());
+        Object $counterPartyName = this.getCounterPartyName();
+        result = result * 59 + ($counterPartyName == null ? 43 : $counterPartyName.hashCode());
+        Object $counterPartyShortName = this.getCounterPartyShortName();
+        result = result * 59 + ($counterPartyShortName == null ? 43 : $counterPartyShortName.hashCode());
+        Object $preferences = this.getPreferences();
+        result = result * 59 + ($preferences == null ? 43 : $preferences.hashCode());
+        Object $accounts = this.getAccounts();
+        result = result * 59 + ($accounts == null ? 43 : $accounts.hashCode());
+        Object $accountsPreferences = this.getAccountsPreferences();
+        result = result * 59 + ($accountsPreferences == null ? 43 : $accountsPreferences.hashCode());
+        Object $currencyPreferences = this.getCurrencyPreferences();
+        result = result * 59 + ($currencyPreferences == null ? 43 : $currencyPreferences.hashCode());
+        Object $fxCheck = this.getFxCheck();
+        result = result * 59 + ($fxCheck == null ? 43 : $fxCheck.hashCode());
+        return result;
+    }
+
+    public String toString() {
+        TXCustomerID var10000 = this.getCounterPartyId();
+        return "TXSFCounterPartyDetails(counterPartyId=" + var10000 + ", counterPartyName=" + this.getCounterPartyName() + ", counterPartyShortName=" + this.getCounterPartyShortName() + ", preferences=" + this.getPreferences() + ", accounts=" + this.getAccounts() + ", accountsPreferences=" + this.getAccountsPreferences() + ", currencyPreferences=" + this.getCurrencyPreferences() + ", fxCheck=" + this.getFxCheck() + ")";
+    }
+
+    public TXSFCounterPartyDetails() {
+    }
+
+    public abstract static class TXSFCounterPartyDetailsBuilder<C extends TXSFCounterPartyDetails, B extends TXSFCounterPartyDetailsBuilder<C, B>> {
+        private TXCustomerID counterPartyId;
+        private TXPartyName counterPartyName;
+        private TXPartyShortName counterPartyShortName;
+        private TXCounterPartySupplierPreferences preferences;
+        private List<TXCounterPartyAccountDetails> accounts;
+        private List<TXCounterPartyAccountPreferences> accountsPreferences;
+        private List<TXCounterPartyCurrencyPreferences> currencyPreferences;
+        private List<TXCounterPartyFxPreferences> fxCheck;
+
+        public TXSFCounterPartyDetailsBuilder() {
+        }
+
+        public B counterPartyId(TXCustomerID counterPartyId) {
+            this.counterPartyId = counterPartyId;
+            return (B)this.self();
+        }
+
+        public B counterPartyName(TXPartyName counterPartyName) {
+            this.counterPartyName = counterPartyName;
+            return (B)this.self();
+        }
+
+        public B counterPartyShortName(TXPartyShortName counterPartyShortName) {
+            this.counterPartyShortName = counterPartyShortName;
+            return (B)this.self();
+        }
+
+        public B preferences(TXCounterPartySupplierPreferences preferences) {
+            this.preferences = preferences;
+            return (B)this.self();
+        }
+
+        public B accounts(List<TXCounterPartyAccountDetails> accounts) {
+            this.accounts = accounts;
+            return (B)this.self();
+        }
+
+        public B accountsPreferences(List<TXCounterPartyAccountPreferences> accountsPreferences) {
+            this.accountsPreferences = accountsPreferences;
+            return (B)this.self();
+        }
+
+        public B currencyPreferences(List<TXCounterPartyCurrencyPreferences> currencyPreferences) {
+            this.currencyPreferences = currencyPreferences;
+            return (B)this.self();
+        }
+
+        public B fxCheck(List<TXCounterPartyFxPreferences> fxCheck) {
+            this.fxCheck = fxCheck;
+            return (B)this.self();
+        }
+
+        protected abstract B self();
+
+        public abstract C build();
+
+        public String toString() {
+            return "TXSFCounterPartyDetails.TXSFCounterPartyDetailsBuilder(counterPartyId=" + this.counterPartyId + ", counterPartyName=" + this.counterPartyName + ", counterPartyShortName=" + this.counterPartyShortName + ", preferences=" + this.preferences + ", accounts=" + this.accounts + ", accountsPreferences=" + this.accountsPreferences + ", currencyPreferences=" + this.currencyPreferences + ", fxCheck=" + this.fxCheck + ")";
+        }
+    }
+
+    private static final class TXSFCounterPartyDetailsBuilderImpl extends TXSFCounterPartyDetailsBuilder<TXSFCounterPartyDetails, TXSFCounterPartyDetailsBuilderImpl> {
+        private TXSFCounterPartyDetailsBuilderImpl() {
+        }
+
+        protected TXSFCounterPartyDetailsBuilderImpl self() {
+            return this;
+        }
+
+        public TXSFCounterPartyDetails build() {
+            return new TXSFCounterPartyDetails(this);
+        }
+    }
+}
