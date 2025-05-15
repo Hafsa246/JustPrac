@@ -1,0 +1,20 @@
+package com.sc.refdata.event;
+
+import com.sc.core.event.TXBaseEvent;
+import com.sc.refdata.dto.TXReferenceDataGenericDetails;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class TXL1GenericDetailsRetrievedEvent extends TXBaseEvent{
+	
+	private static final long serialVersionUID = 1L;
+	private TXReferenceDataGenericDetails genericDetails;
+
+}
