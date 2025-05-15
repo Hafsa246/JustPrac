@@ -1,0 +1,2502 @@
+package com.sc.txndoc.eventhandler;
+
+import static com.sc.txndoc.util.TXOdsTransactionConstants.LOG_REQUEST_RECEIVED;
+import static com.sc.txndoc.util.TXOdsTransactionEnum.*;
+
+import com.sc.assetbacked.event.TXAssetBackedSecuritizationCreatedUpdatedEvent;
+import com.sc.assetbacked.event.TXCreateUpdateAssetBackedSecuritizationFinalizedEvent;
+import com.sc.creditprotection.event.TXCreateUpdateCreditProtectFinalizedEvent;
+import com.sc.creditprotection.event.TXCreditProtectionCreatedUpdatedEvent;
+import com.sc.document.events.*;
+import com.sc.events.*;
+import com.sc.txndoc.document.documentSettlement.TXOdsDocumentSettlementService;
+import com.sc.txndoc.transaction.assetbackedsecuritization.TXAssetBackedSecuritizationService;
+import com.sc.txndoc.transaction.creditprotection.TXCreditProtectionService;
+import com.sc.txndoc.transaction.journalsetup.TXJournalSetupRetrievedService;
+import com.sc.txndoc.transaction.riskDistributionForFinanceRecord.TXRiskDistributionForFinanceRecordedService;
+import org.axonframework.config.ProcessingGroup;
+import org.axonframework.eventhandling.EventHandler;
+import org.axonframework.messaging.annotation.MessageIdentifier;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.RequestBody;
+
+import com.sc.core.common.exception.SCException;
+import com.sc.core.event.TXAdviceDetailsOverriddenEvent;
+import com.sc.core.event.TXAdviceProcessingCompletedEvent;
+import com.sc.core.event.TXBusinessDateChangeProcessCompletedEvent;
+import com.sc.core.event.TXBusinessExceptionIdentifiedEvent;
+import com.sc.core.event.TXBusinessReferralIdentifiedEvent;
+import com.sc.core.event.TXDocumentReferralIdentifiedEvent;
+import com.sc.core.event.TXPostReleaseSagaEndedEvent;
+import com.sc.core.event.TXReprocessedPaymentEvent;
+import com.sc.core.event.TXStepRejectedEvent;
+import com.sc.core.logging.customizer.SCARFLogger;
+import com.sc.event.TXAMLCheckBelowThresholdEvent;
+import com.sc.event.TXAMLCheckRequiredEvent;
+import com.sc.event.TXAdviceGeneratedEvent;
+import com.sc.event.TXCallbackCheckBelowThresholdEvent;
+import com.sc.event.TXCallbackCheckRequiredEvent;
+import com.sc.event.TXCreateUpdateFollowupFinalizedEvent;
+import com.sc.event.TXDuplicateDocumentIdentifiedEvent;
+import com.sc.event.TXFollowupCreatedUpdatedEvent;
+import com.sc.event.TXFollowupGenerateRequestedEvent;
+import com.sc.event.TXFollowupGeneratedEvent;
+import com.sc.event.TXFollowupSummaryCreatedEvent;
+import com.sc.event.TXIMBCheckRequiredEvent;
+import com.sc.event.TXLLICheckRequiredEvent;
+import com.sc.event.TXLimitResponseReceivedEvent;
+import com.sc.event.TXPaymentPostingAcknowledgedEvent;
+import com.sc.event.TXPaymentPostingFailedEvent;
+import com.sc.event.TXPaymentPostingSubmittedEvent;
+import com.sc.event.TXPaymentResponseStatusUpdatedEvent;
+import com.sc.event.TXPostAlertIdentifiedEvent;
+import com.sc.event.TXVesselCheckRequiredEvent;
+import com.sc.events.disbursement.TXDisbursementReadyToFinalizeEvent;
+import com.sc.events.disbursement.TXL1OutwardPaymentDetailsRetrievedEvent;
+import com.sc.events.enrich.TXL1ChargeDetailsRetrievedEvent;
+import com.sc.exceptionworkflow.events.TXErrorCaseCreatedEvent;
+import com.sc.exceptionworkflow.events.TXReferralCaseCreatedEvent;
+import com.sc.icl.event.TXAdjustInterestComputationListFinalizedEvent;
+import com.sc.icl.event.TXCreateUpdateInterestComputationListFinalizedEvent;
+import com.sc.icl.event.TXInterestComputationListAdjustedEvent;
+import com.sc.icl.event.TXInterestComputationListCreatedUpdatedEvent;
+import com.sc.ifrs.events.TXIFRSBalanceSplitEvent;
+import com.sc.ifrs.events.TXIFRSBalanceSplitFinalizedEvent;
+import com.sc.ifrs.events.TXIFRSBalanceUpdateFinalizedEvent;
+import com.sc.ifrs.events.TXIFRSBalanceUpdatedEvent;
+import com.sc.ifrs.events.TXNewIFRSBalanceCreatedEvent;
+import com.sc.ifrs.events.TXNewIFRSBalanceFinalizedEvent;
+import com.sc.interest.events.TXInterestCloseFinalizedEvent;
+import com.sc.interest.events.TXInterestClosedEvent;
+import com.sc.interest.events.TXInterestNextCollectionDateRefreshFinalizedEvent;
+import com.sc.interest.events.TXInterestNextCollectionDateRefreshedEvent;
+import com.sc.interest.events.TXInterestPricingUpdateFinalizedEvent;
+import com.sc.interest.events.TXInterestPricingUpdatedEvent;
+import com.sc.interest.events.TXNewInterestCreatedEvent;
+import com.sc.interest.events.TXNewInterestFinalizedEvent;
+import com.sc.interest.events.TXRCLRefreshFinalizedEvent;
+import com.sc.interest.events.TXRCLRefreshedEvent;
+import com.sc.rd.businessdate.event.TXBusinessDateAmendFinalizedEvent;
+import com.sc.rd.businessdate.event.TXBusinessDateCreateFinalizedEvent;
+import com.sc.refdata.event.TXL1AMLDetailsRetrievedEvent;
+import com.sc.refdata.event.TXL1AdviceDetailsRetrievedEvent;
+import com.sc.refdata.event.TXL1CallBackDetailsRetrievedEvent;
+import com.sc.refdata.event.TXL1DocumentDetailsRetrievedEvent;
+import com.sc.refdata.event.TXL1GenericDetailsRetrievedEvent;
+import com.sc.refdata.event.TXL1InterfaceDetailsRetrievedEvent;
+import com.sc.refdata.event.TXL1RiskIndicatorDetailsRetrievedEvent;
+import com.sc.refdata.event.TXL1SanctionsDetailsRetrievedEvent;
+import com.sc.refdata.event.TXL1TransactionDetailsRetrievedEvent;
+import com.sc.refdata.event.TXL1VesselDetailsRetrievedEvent;
+import com.sc.selldown.event.TXAccrualInformationForSellDownUpdatedEvent;
+import com.sc.selldown.event.TXAccrualInformationForSellDownUpdatedFinalizedEvent;
+import com.sc.selldown.event.TXSelldownCreatedUpdatedEvent;
+import com.sc.selldown.event.TXSelldownCreatedUpdatedFinalizedEvent;
+import com.sc.tax.event.TXIndicativeTaxGeneratedEvent;
+import com.sc.tax.event.TXL1TaxDetailsRetrievedEvent;
+import com.sc.tax.event.TXTaxCreateFinalizedEvent;
+import com.sc.tax.event.TXTaxCreatedEvent;
+import com.sc.tax.event.TXTaxableItemCreateUpdateFinalizedEvent;
+import com.sc.txn.events.TXACRReadyforStepInitiationEvent;
+import com.sc.txn.events.TXACRTransactionStepCreatedEvent;
+import com.sc.txn.events.TXBulkTransactionStepCreatedEvent;
+import com.sc.txn.events.TXDEVReadyforStepInitiationEvent;
+import com.sc.txn.events.TXDEVTransactionStepCreatedEvent;
+import com.sc.txn.events.TXFEVReadyforStepInitiationEvent;
+import com.sc.txn.events.TXFEVTransactionStepCreatedEvent;
+import com.sc.txn.events.TXFinalizedTransactionEvent;
+import com.sc.txn.events.TXMSCReadyforStepInitiationEvent;
+import com.sc.txn.events.TXMSCTransactionStepCreatedEvent;
+import com.sc.txn.events.TXNEWReadyforStepInitiationEvent;
+import com.sc.txn.events.TXNEWTransactionStepCreatedEvent;
+import com.sc.txn.events.TXReadyForInterfaceEvent;
+import com.sc.txn.events.TXStepReleasedEvent;
+import com.sc.txn.events.TXTransactionPartiesIdentifiedEvent;
+import com.sc.txn.events.TXTransactionStepUpdatedEvent;
+import com.sc.txndoc.businessdate.TXOdsBusinessDateHelper;
+import com.sc.txndoc.document.duplicatedocumentservice.TXOdsDuplicateDocumentIdentifiedService;
+import com.sc.txndoc.document.exception.TXOdsDocumentExceptionService;
+import com.sc.txndoc.document.service.TXOdsDocumentService;
+import com.sc.txndoc.transaction.advicedetailsoverride.TXAdviceDetailsOverriddenService;
+import com.sc.txndoc.transaction.advicegenerated.TxOdsAdviceGeneratedService;
+import com.sc.txndoc.transaction.amlcheck.TXOdsAMLCheckService;
+import com.sc.txndoc.transaction.callbackcheck.TXOdsCallbackCheckService;
+import com.sc.txndoc.transaction.charge.TXOdsChargeService;
+import com.sc.txndoc.transaction.consolidatedjournal.TXOdsConsolidatedJournalService;
+import com.sc.txndoc.transaction.disbursement.TXOdsDisbursementService;
+import com.sc.txndoc.transaction.docdelivery.TXOdsDeliveryDocumentService;
+import com.sc.txndoc.transaction.documentbatch.TXOdsDocumentBatchService;
+import com.sc.txndoc.transaction.documentbatchfollowup.TXOdsDocumentBatchFollowupService;
+import com.sc.txndoc.transaction.duplicate.TXOdsDuplicateDocumentDataService;
+import com.sc.txndoc.transaction.exception.TXOdsExceptionService;
+import com.sc.txndoc.transaction.finance.TXOdsFinanceDetailsService;
+import com.sc.txndoc.transaction.finance.TXOdsInterestComputationDetailsService;
+import com.sc.txndoc.transaction.finance.TXOdsInterestDetailsService;
+import com.sc.txndoc.transaction.financetogroup.TXOdsFinanceToGroupDetailsService;
+import com.sc.txndoc.transaction.followupgenerate.TXOdsFollowupGenerateRequestService;
+import com.sc.txndoc.transaction.followupsummary.TXOdsFollowupSummaryService;
+import com.sc.txndoc.transaction.ifrs.TXOdsIFRSDetailsService;
+import com.sc.txndoc.transaction.instrumentsummary.TXOdsInstrumentSummaryService;
+import com.sc.txndoc.transaction.journal.TXOdsJournalService;
+import com.sc.txndoc.transaction.limit.TXOdsLimitService;
+import com.sc.txndoc.transaction.limitresponse.TXOdsLimitResponseService;
+import com.sc.txndoc.transaction.marginsummary.TXOdsMarginSummaryService;
+import com.sc.txndoc.transaction.partyDetails.TXOdsPartyDetailsService;
+import com.sc.txndoc.transaction.referencedata.TXOdsRefDataFinanceService;
+import com.sc.txndoc.transaction.referencedata.TXOdsRefDataInterfaceService;
+import com.sc.txndoc.transaction.referencedata.TXOdsRefDataTransactionService;
+import com.sc.txndoc.transaction.referencedata.TXOdsReferenceDataService;
+import com.sc.txndoc.transaction.remittanceinformation.TXOdsRemittanceInformationService;
+import com.sc.txndoc.transaction.reprocessedpaymentdetails.TXOdsReprocessedPaymentDetailsService;
+import com.sc.txndoc.transaction.scpayposting.TXOdsSCPayPostingService;
+import com.sc.txndoc.transaction.selldown.TXOdsSellDownService;
+import com.sc.txndoc.transaction.service.TXOdsTransactionService;
+import com.sc.txndoc.transaction.tax.TXOdsTaxService;
+import com.sc.txndoc.transaction.tax.TXOdsTaxableItemService;
+import com.sc.txndoc.transaction.transactionheader.TXOdsTransactionHeaderService;
+import com.sc.txndoc.transaction.vesselcheck.TXOdsVesselCheckService;
+import com.sc.txndoc.util.TXOdsDocumentEnum;
+import com.sc.txndoc.util.TXOdsEventStatusEnum;
+import com.sc.txndoc.util.TXOdsTransactionConstants;
+import com.sc.txndoc.util.TXOdsTransactionEnum;
+
+import lombok.NoArgsConstructor;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
+
+@NoArgsConstructor
+@Component
+@Slf4j
+@ProcessingGroup("transactionODSQueryGroup")
+@Transactional(propagation = Propagation.NOT_SUPPORTED)
+public class TXOdsTransactionEventHandler {
+
+	@Autowired
+	private TXOdsTransactionService transactionService;
+	
+	@Autowired
+	private TXOdsTransactionHeaderService transactionHeaderService;
+	
+	@Autowired
+	private TXOdsMarginSummaryService marginSummaryService;
+	
+	@Autowired
+	private TXOdsAMLCheckService amlCheckService;
+	
+	@Autowired
+	private TXOdsDisbursementService disbursementService;
+	
+	@Autowired
+	private TXOdsTaxService taxService;
+	
+	@Autowired
+	private TXOdsFollowupSummaryService followupSummaryService;
+	
+	@Autowired
+	private TXOdsFollowupGenerateRequestService followupGenerateRequestService;
+	
+	@Autowired
+	private TXOdsCallbackCheckService callbackCheckService;
+	
+	@Autowired
+	private TXOdsChargeService chargeService;
+	
+	@Autowired
+	private TXOdsConsolidatedJournalService consolidatedJournalService;
+	
+	@Autowired
+	private TXOdsExceptionService exceptionService;
+	
+	@Autowired
+	private TXOdsIFRSDetailsService ifrsDetailsService;
+	
+	@Autowired
+	private TXOdsInstrumentSummaryService instrumentSummaryService;
+	
+	@Autowired
+	private TXOdsJournalService journalService;
+	
+	@Autowired
+	private TXOdsLimitService limitService;
+	
+	@Autowired
+	private TXOdsLimitResponseService limitResponseService;
+	
+	@Autowired
+	private TXOdsSCPayPostingService scpayPostingService;
+	
+	@Autowired
+	private TXOdsDocumentBatchService documentBatchService;
+	
+	@Autowired
+	private TXOdsTaxableItemService taxableItemService;
+	
+	@Autowired
+	private TXOdsVesselCheckService vesselCheckService;
+	
+	@Autowired
+	private TXOdsReferenceDataService referenceDataService;
+	
+	@Autowired
+	private TXOdsRefDataTransactionService refDataTransactionService;
+	
+	@Autowired
+	private TXOdsRefDataFinanceService refDataFinanceService;
+	
+	@Autowired
+	private TXOdsRefDataInterfaceService refDataInterfaceService;
+	
+	@Autowired
+	private TXOdsFinanceDetailsService financeDetailsService;
+	
+	@Autowired
+	private TXOdsInterestDetailsService interestDetailsService;
+	
+	@Autowired
+	private TXOdsDocumentService documentService;
+	
+	@Autowired
+	private TxOdsAdviceGeneratedService adviceGeneratedService;
+	
+	@Autowired
+	private TXOdsDocumentBatchFollowupService documentBatchFollowupService;
+	
+	@Autowired
+	private TXOdsDuplicateDocumentDataService duplicateDocService;
+	
+	@Autowired
+	private TXOdsRemittanceInformationService remittanceInformationService;
+	
+	@Autowired
+	private TXOdsPartyDetailsService partyDetailsService;
+
+	@Autowired
+	private TXOdsDeliveryDocumentService deliveryDocumentService;
+	
+	@Autowired
+	private TXOdsInterestComputationDetailsService interestComputationDetailsService;
+	
+	@Autowired
+	private TXAdviceDetailsOverriddenService adviceDetailsOverriddenService;
+	
+	@Autowired
+	private TXOdsDuplicateDocumentIdentifiedService duplicateDocumentIdentifiedService;
+	
+	@Autowired
+	private TXOdsDocumentExceptionService documentExceptionService;
+	
+	@Autowired
+	private TXOdsReprocessedPaymentDetailsService reprocessedPaymentDetailsService;
+
+	@Autowired
+	private TXCreditProtectionService creditProtectionService;
+
+	@Autowired
+	private TXAssetBackedSecuritizationService assetBackedSecuritizationService;
+
+	@Autowired
+	private TXRiskDistributionForFinanceRecordedService riskDistributionForFinanceRecordedService;
+	
+	@Autowired
+	private TXOdsSellDownService sellDownService;
+
+	@Autowired
+	private TXJournalSetupRetrievedService journalSetupRetrievedService;
+	
+	@Autowired
+	private TXOdsFinanceToGroupDetailsService financeToGroupDetailsService;
+	
+	@Autowired
+	private TXOdsDocumentSettlementService documentSettlementService;
+	
+	@Autowired
+	private TXOdsBusinessDateHelper businessDateHelper;
+	
+	
+	/** ------------------------- Transaction Header  - Start -----------------  **/
+	
+	@EventHandler
+	public void on(TXReadyForInterfaceEvent event, @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_READY_FOR_INTERFACE_EVENT.getValue() + " with MessageIdentifier :" + messageIdentifier);
+			refDataInterfaceService.receiveEvent(event, messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_READY_FOR_INTERFACE_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+	
+	@EventHandler
+	public void on(TXNEWTransactionStepCreatedEvent event, @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_NEW_TRANSACTION_STEP_CREATED_EVENT.getValue() + " with MessageIdentifier :" + messageIdentifier);
+			transactionHeaderService.receiveEvent(event, messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_NEW_TRANSACTION_STEP_CREATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXBulkTransactionStepCreatedEvent event, @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_BULK_TRANSACTION_STEP_CREATED_EVENT.getValue() + " with MessageIdentifier :" + messageIdentifier);
+			transactionHeaderService.receiveEvent(event, messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_BULK_TRANSACTION_STEP_CREATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXFEVTransactionStepCreatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_FEV_TRANSACTION_STEP_CREATED_EVENT.getValue() + " with MessageIdentifier :"+messageIdentifier );
+			transactionHeaderService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_FEV_TRANSACTION_STEP_CREATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}	
+	}
+
+	@EventHandler
+	public void on(TXDEVTransactionStepCreatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_DEV_TRANSACTION_STEP_CREATED_EVENT.getValue()+ " with MessageIdentifier :"+messageIdentifier );
+			transactionHeaderService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_DEV_TRANSACTION_STEP_CREATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXMSCTransactionStepCreatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_MSC_TRANSACTION_STEP_CREATED_EVENT.getValue()+ " with MessageIdentifier :"+messageIdentifier );
+			transactionHeaderService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_MSC_TRANSACTION_STEP_CREATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXTransactionStepUpdatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_TRANSACTION_STEP_UPDATED_EVENT.getValue() + " with MessageIdentifier :"+messageIdentifier );
+			transactionHeaderService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_TRANSACTION_STEP_UPDATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+
+	@EventHandler
+	public void on(TXFinalizedTransactionEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_FINALIZED_TRANSACTION_EVENT.getValue()+ " with MessageIdentifier :"+messageIdentifier );
+			transactionHeaderService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_FINALIZED_TRANSACTION_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	/** ------------------------- Transaction Header  - End -----------------  **/
+
+	/** ------------------------- Margin Summary  - Start -----------------  **/
+
+	@EventHandler
+	public void on(TXMarginSummaryCreatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_MARGIN_SUMMARY_CREATED_EVENT.getValue());
+			marginSummaryService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_MARGIN_SUMMARY_CREATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXMarginIdentifiedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_MARGIN_IDENTIFIED_EVENT.getValue() + " with MessageIdentifier :"+messageIdentifier );
+			marginSummaryService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_MARGIN_IDENTIFIED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXAdditionalMarginIdentifiedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_ADDITIONAL_MARGIN_IDENTIFIED_EVENT.getValue()+ " with MessageIdentifier :"+messageIdentifier );
+			marginSummaryService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_ADDITIONAL_MARGIN_IDENTIFIED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXMarginProcessedFlagUpdatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_MARGIN_PROCESSED_FLAG_UPD_EVENT.getValue());
+			marginSummaryService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_MARGIN_PROCESSED_FLAG_UPD_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXMarginCreatedEventDataEnrichedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_MARGIN_CREATED_DATA_ENRICHED_EVENT.getValue() + " with MessageIdentifier :"+messageIdentifier );
+			marginSummaryService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_MARGIN_CREATED_DATA_ENRICHED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXMarginLienDetailsUpdatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_MARGIN_LIEN_UPDATED_EVENT.getValue() + " with MessageIdentifier :"+messageIdentifier );
+			marginSummaryService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_MARGIN_LIEN_UPDATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXMarginLienDetailsUpdateFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_MARGIN_LIEN_UPDATE_FINALIZED_EVENT.getValue());
+			marginSummaryService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_MARGIN_LIEN_UPDATE_FINALIZED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXMarginCreatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_MARGIN_CREATED_EVENT.getValue());
+			marginSummaryService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_MARGIN_CREATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXMarginCreateFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_MARGIN_CREATE_FINALIZED_EVENT.getValue());
+			marginSummaryService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_MARGIN_CREATE_FINALIZED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXMarginReleasedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_MARGIN_RELEASED_EVENT.getValue() + " with MessageIdentifier :"+messageIdentifier );
+			marginSummaryService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_MARGIN_RELEASED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXMarginReleasedEventDataEnrichedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_MARGIN_RELEASED_EVENT_DATA_ENRICHED_EVENT.getValue()+ " with MessageIdentifier :"+messageIdentifier );
+			marginSummaryService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_MARGIN_RELEASED_EVENT_DATA_ENRICHED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXMarginAmendedEventDataEnrichedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_MARGIN_AMENDED_EVENT_DATA_ENRICHED_EVENT.getValue());
+			marginSummaryService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_MARGIN_AMENDED_EVENT_DATA_ENRICHED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXMarginReleaseFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_MARGIN_RELEASE_FINALIZED_EVENT.getValue());
+			marginSummaryService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_MARGIN_RELEASE_FINALIZED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXMarginAmendFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_MARGIN_AMEND_FINALIZED_EVENT.getValue());
+			marginSummaryService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_MARGIN_AMEND_FINALIZED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXMarginAmendedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_MARGIN_AMENDED_EVENT.getValue());
+			marginSummaryService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_MARGIN_AMENDED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	/** ------------------------- Margin Summary  - End -----------------  **/
+
+	/** ------------------------- Tax   - Start -----------------  **/
+
+	@EventHandler
+	public void on(TXTaxCreatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_TAX_CREATED_EVENT.getValue());
+			taxService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_TAX_CREATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXTaxCreateFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_TAX_CREATE_FINALIZED.getValue());
+			taxService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_TAX_CREATE_FINALIZED.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXIndicativeTaxGeneratedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_TAX_INDICATIVE_TAX_GENERATED_EVENT.getValue());
+			taxService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_TAX_INDICATIVE_TAX_GENERATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXTaxableItemCreateUpdateFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_TAXABLE_ITEM_CRT_UPD_FIN_EVENT.getValue());
+			taxableItemService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_TAXABLE_ITEM_CRT_UPD_FIN_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXBusinessExceptionIdentifiedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_BUSINESS_EXCEPTION_IDENTIFIED_EVENT.getValue());
+			exceptionService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_BUSINESS_EXCEPTION_IDENTIFIED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXBusinessReferralIdentifiedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_BUSINESS_REFERRAL_IDENTIFIED_EVENT.getValue()+" messageIdentifier:"+messageIdentifier);
+			exceptionService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_BUSINESS_REFERRAL_IDENTIFIED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXChargeCreatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_CHARGE_CREATED_EVENT.getValue());
+			chargeService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_CHARGE_CREATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXChargeCreateFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_CHARGE_CREATE_FINALIZED_EVENT.getValue());
+			chargeService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_CHARGE_CREATE_FINALIZED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXLimitRequestAppendedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_LIMIT_REQUEST_APPENDED_EVENT.getValue());
+			limitService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_LIMIT_REQUEST_APPENDED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXLimitResponseReceivedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_LIMIT_RESPONSE_RECEIVED_EVENT.getValue());
+			limitResponseService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_LIMIT_RESPONSE_RECEIVED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXJournalEntriesConsolidatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_JOURNAL_ENTRIES_CONSOLIDATED_EVENT.getValue());
+			consolidatedJournalService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_JOURNAL_ENTRIES_CONSOLIDATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXJournalListUpdatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_JOURNAL_LIST_UPDATED_EVENT.getValue());
+			journalService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_JOURNAL_LIST_UPDATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXJournalListCreatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_JOURNAL_LIST_CREATED_EVENT.getValue());
+			journalService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_JOURNAL_LIST_CREATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXJournalRefreshedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_JOURNAL_REFRESHED_EVENT.getValue());
+			journalService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_JOURNAL_REFRESHED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXIMBCheckRequiredEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_IMB_CHECK_REQUIRED_EVENT.getValue());
+			vesselCheckService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_IMB_CHECK_REQUIRED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXLLICheckRequiredEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_LLI_CHECK_REQUIRED_EVENT.getValue());
+			vesselCheckService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_LLI_CHECK_REQUIRED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXVesselCheckRequiredEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_VESSEL_CHECK_REQUIRED_EVENT.getValue());
+			vesselCheckService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_VESSEL_CHECK_REQUIRED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	/** ------------------------- Reference Data  - Start -----------------  **/
+
+	@EventHandler
+	public void on(TXL1DocumentDetailsRetrievedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_L1_DOCUMENT_DETAILS_RETRIEVED_EVENT.getValue());
+			referenceDataService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_L1_DOCUMENT_DETAILS_RETRIEVED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXL1GenericDetailsRetrievedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_L1_GENERIC_DETAILS_RETRIEVED_EVENT.getValue());
+			referenceDataService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_L1_GENERIC_DETAILS_RETRIEVED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXL1ChargeDetailsRetrievedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_L1_CHARGE_DETAILS_RETRIEVED_EVENT.getValue());
+			referenceDataService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_L1_CHARGE_DETAILS_RETRIEVED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXL1MarginDetailsRetrievedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_L1_MARGIN_DETAILS_RETRIEVED_EVENT.getValue());
+			referenceDataService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_L1_MARGIN_DETAILS_RETRIEVED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXL1TaxDetailsRetrievedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_L1_TAX_DETAILS_RETRIEVED_EVENT.getValue());
+			referenceDataService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_L1_TAX_DETAILS_RETRIEVED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXL1OutwardPaymentDetailsRetrievedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_L1_OUTWARDPAYMENT_DETAILS_RETRIEVED_EVENT.getValue());
+			referenceDataService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_L1_OUTWARDPAYMENT_DETAILS_RETRIEVED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXL1SanctionsDetailsRetrievedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_L1_SANCTION_DETAILS_RETRIEVED_EVENT.getValue());
+			referenceDataService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_L1_SANCTION_DETAILS_RETRIEVED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXL1LimitDetailsRetrievedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_L1_LIMIT_DETAILS_RETRIEVED_EVENT.getValue());
+			referenceDataService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_L1_LIMIT_DETAILS_RETRIEVED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXL1AMLDetailsRetrievedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_L1_AML_DETAILS_RETRIEVED_EVENT.getValue());
+			referenceDataService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_L1_AML_DETAILS_RETRIEVED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXL1CallBackDetailsRetrievedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_L1_CALLBACK_DETAILS_RETRIEVED_EVENT.getValue());
+			referenceDataService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_L1_CALLBACK_DETAILS_RETRIEVED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXL1VesselDetailsRetrievedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_L1_VESSEL_DETAILS_RETRIEVED_EVENT.getValue());
+			referenceDataService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_L1_VESSEL_DETAILS_RETRIEVED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXL1RiskIndicatorDetailsRetrievedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_L1_RISKINDICATOR_DETAILS_RETRIEVED_EVENT.getValue());
+			referenceDataService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_L1_RISKINDICATOR_DETAILS_RETRIEVED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXL1AdviceDetailsRetrievedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_L1_ADVICE_DETAILS_RETRIEVED_EVENT.getValue());
+			referenceDataService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_L1_ADVICE_DETAILS_RETRIEVED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXL1TransactionDetailsRetrievedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_L1_TRANSACTION_DETAILS_RETRIEVED_EVENT.getValue());
+			refDataTransactionService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_L1_TRANSACTION_DETAILS_RETRIEVED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXL1FinanceDetailsRetrievedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_L1_FINANCE_DETAILS_RETRIEVED_EVENT.getValue());
+			refDataFinanceService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_L1_FINANCE_DETAILS_RETRIEVED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXL1InterfaceDetailsRetrievedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_L1_INTERFACE_DETAILS_RETRIEVED_EVENT.getValue());
+			refDataInterfaceService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_L1_INTERFACE_DETAILS_RETRIEVED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+	
+
+	/** ------------------------- Reference Data  - End -----------------  **/
+	
+	/** ------------------------- Finance To group allocated Data  - Start-----------------  **/
+	
+	@EventHandler
+	public void on(TXFinanceToGroupAllocatedEvent event, @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_FINANCE_TO_GROUP_ALLOCATED_EVENT.getValue() + " with MessageIdentifier :" + messageIdentifier);
+			financeToGroupDetailsService.receiveEvent(event, messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_FINANCE_TO_GROUP_ALLOCATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+	
+	/** ------------------------- Reference Data  - End -----------------  **/
+
+	/** ------------------------- Released Events - Start -----------------  **/
+
+	@EventHandler
+	public void on(TXStepReleasedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(" Request Received for "+TX_STEP_RELEASED_EVENT.getValue());
+			transactionService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_STEP_RELEASED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXPostReleaseSagaEndedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(" Request Received for "+TX_POST_RELEASE_SAGA_ENDED_EVENT.getValue());
+			transactionService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_POST_RELEASE_SAGA_ENDED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXStepRejectedEvent event, @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_STEP_REJECTED_EVENT.getValue());
+			transactionService.receiveEvent(event, messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_STEP_REJECTED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	/** ------------------------- Released Events - End -----------------  **/
+
+	/** ------------------------- DocumentBatch Events - Start -----------------  **/
+
+	@EventHandler
+	public void on(TXDocumentBatchCreatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_DOCUMENT_BATCH_CREATED_EVENT.getValue());
+			documentBatchService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_DOCUMENT_BATCH_CREATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXDocumentBatchUpdatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_DOCUMENT_BATCH_UPDATED_EVENT.getValue());
+			documentBatchService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_DOCUMENT_BATCH_UPDATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXFinalizedBatchEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_FINALIZED_BATCH_EVENT.getValue());
+			documentBatchService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_FINALIZED_BATCH_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	/** ------------------------- DocumentBatch Events - End -----------------  **/
+
+	/** ------------------------- DocumentBatch Followup Events - Start -----------------  **/
+
+	@EventHandler
+	public void on(TXDocumentBatchFollowupDetailsUpdatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TXOdsTransactionEnum.TX_DOCUMENT_BATCH_FOLLOWUPDETAILS_UPDATED_EVENT.getValue());
+			documentBatchFollowupService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_DOCUMENT_BATCH_FOLLOWUPDETAILS_UPDATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	/** ------------------------- DocumentBatch Followup Events - End -----------------  **/
+
+	/** ------------------------- SCPAY Events - Start -----------------  **/
+	@EventHandler
+	public void on(TXPaymentPostingAcknowledgedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_SCPAY_PAYMENTPOSTING_ACK_EVENT.getValue());
+			scpayPostingService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_SCPAY_PAYMENTPOSTING_ACK_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXPaymentResponseStatusUpdatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_SCPAY_PAYMENTRESPONSE_STATUS_UPDATED_EVENT.getValue());
+			scpayPostingService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_SCPAY_PAYMENTRESPONSE_STATUS_UPDATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXPaymentPostingFailedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_SCPAY_PAYMENTPOSTING_FAILED_EVENT.getValue());
+			scpayPostingService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_SCPAY_PAYMENTPOSTING_FAILED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXPaymentPostingSubmittedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TXOdsTransactionEnum.TX_SCPAY_PAYMENTPOSTING_SUBMITTED_EVENT.getValue());
+			scpayPostingService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_SCPAY_PAYMENTPOSTING_SUBMITTED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+
+	/** ------------------------- SCPAY Events - End -----------------  **/
+
+
+	@EventHandler
+	public void on(TXAMLCheckRequiredEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_AMLCHECK_REQUIRED_EVENT.getValue()+ " with MessageIdentifier :"+messageIdentifier );
+			amlCheckService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_AMLCHECK_REQUIRED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXAMLCheckBelowThresholdEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_AMLCHECK_BELOWTHRESHOLD_EVENT.getValue());
+			amlCheckService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_AMLCHECK_BELOWTHRESHOLD_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXPostAlertIdentifiedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_POST_ALERT_IDENTIFIED_EVENT.getValue());
+			callbackCheckService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_POST_ALERT_IDENTIFIED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXCallbackCheckRequiredEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_CALLBACKCHECK_REQUIRED_EVENT.getValue());
+			callbackCheckService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_CALLBACKCHECK_REQUIRED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXCallbackCheckBelowThresholdEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_CALLBACKCHECK_BELOWTHRESHOLD_EVENT.getValue());
+			callbackCheckService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_CALLBACKCHECK_BELOWTHRESHOLD_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+
+	/** ----------------------- Finance Events - Start ---------------  **/
+	@EventHandler
+	public void on(TXFinanceCreatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_FINANCE_CREATED_EVENT.getValue());
+			financeDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_FINANCE_CREATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXFinanceCreateFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_FINANCE_CREATED_FINALIZED_EVENT.getValue());
+			financeDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_FINANCE_CREATED_FINALIZED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXAccrualDetailsForFinanceUpdatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_ACCRUAL_DETAILS_FOR_FINANCE_UPDATED_EVENT.getValue());
+			financeDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_ACCRUAL_DETAILS_FOR_FINANCE_UPDATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXAccrualDetailsForFinanceUpdateFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_ACCRUAL_DETAILS_FOR_FINANCE_UPDATED_FINALIZED_EVENT.getValue());
+			financeDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_ACCRUAL_DETAILS_FOR_FINANCE_UPDATED_FINALIZED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXFinanceForInterestPricingAmendedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_FINANCE_FOR_INTEREST_PRICING_AMEND_EVENT.getValue());
+			financeDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_FINANCE_FOR_INTEREST_PRICING_AMEND_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXFinanceForInterestPricingAmendFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_FINANCE_FOR_INTEREST_PRICING_AMEND_FINALIZED_EVENT.getValue());
+			financeDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_FINANCE_FOR_INTEREST_PRICING_AMEND_FINALIZED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXFullFinanceLiquidatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_FULL_FINANCE_LIQUIDATED_EVENT.getValue());
+			financeDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_FULL_FINANCE_LIQUIDATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXFullFinanceLiquidateFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TXOdsTransactionEnum.TX_FULL_FINANCE_LIQUIDATED_FINALIZED_EVENT.getValue());
+			financeDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_FULL_FINANCE_LIQUIDATED_FINALIZED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXFinanceMaturityAmendedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TXOdsTransactionEnum.TX_FINANCE_MATURITY_AMENDED_EVENT.getValue());
+			financeDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_FINANCE_MATURITY_AMENDED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXFinanceMaturityAmendFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TXOdsTransactionEnum.TX_FINANCE_MATURITY_AMENDED_FINALIZED_EVENT.getValue());
+			financeDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_FINANCE_MATURITY_AMENDED_FINALIZED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXPartFinanceLiquidatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TXOdsTransactionEnum.TX_PART_FINANCE_LIQUIDATED_EVENT.getValue());
+			financeDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_NEW_TRANSACTION_STEP_CREATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXPartFinanceLiquidateFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TXOdsTransactionEnum.TX_PART_FINANCE_LIQUIDATED_FINALIZED_EVENT.getValue());
+			financeDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_NEW_TRANSACTION_STEP_CREATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXFinanceOtherParametersAmendedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TXOdsTransactionEnum.TX_FINANCE_OTHER_PARAMETERS_AMENDED_EVENT.getValue());
+			financeDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_NEW_TRANSACTION_STEP_CREATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXFinanceOtherParametersAmendFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TXOdsTransactionEnum.TX_FINANCE_OTHER_PARAMETERS_AMENDED_FINALIZED_EVENT.getValue());
+			financeDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_NEW_TRANSACTION_STEP_CREATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXFinanceReinstateFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TXOdsTransactionEnum.TX_FINANCE_REINSTATE_FINALIZED_EVENT.getValue());
+			financeDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_NEW_TRANSACTION_STEP_CREATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXFinanceToPastdueTransferFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TXOdsTransactionEnum.TX_FINANCE_PAST_TO_DUE_TRANSFER_FINALIZED_EVENT.getValue());
+			financeDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_NEW_TRANSACTION_STEP_CREATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	/** ----------------------- Finance Events - End ---------------  **/
+
+	/** ------------------------- Disbursement Events - Start -----------------  **/
+	@EventHandler
+	public void on(TXDisbursementReadyToFinalizeEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TXOdsTransactionEnum.TX_DISBURSEMENT_READY_TO_FINALIZE_EVENT.getValue());
+			disbursementService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_NEW_TRANSACTION_STEP_CREATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+	/** ------------------------- Disbursement Events - End -----------------  **/
+
+
+	/** ------------------------- Instrument Summary Events - Start -----------------  **/
+
+	@EventHandler
+	public void on(TXInstrumentSummaryConstructedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TXOdsTransactionEnum.TX_INSTRUMENT_SUMMARY_CONSTRUCTED_EVENT.getValue());
+			instrumentSummaryService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_INSTRUMENT_SUMMARY_CONSTRUCTED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+	/** ------------------------- Instrument Summary Events - End -----------------  **/
+
+	/** ----------------------- IFRS Events - Start ---------------  **/
+
+	@EventHandler
+	public void on(TXNewIFRSBalanceCreatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_NEW_IFRS_BALANCE_CREATED_EVENT.getValue() + " with MessageIdentifier :"+messageIdentifier );
+			ifrsDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_NEW_IFRS_BALANCE_CREATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXNewIFRSBalanceFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_NEW_IFRS_BALANCE_FINALIZED_EVENT.getValue());
+			ifrsDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_NEW_IFRS_BALANCE_FINALIZED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXIFRSBalanceSplitEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_IFRS_BALANCE_SPLIT_EVENT.getValue());
+			ifrsDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_IFRS_BALANCE_SPLIT_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXIFRSBalanceSplitFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_IFRS_BALANCE_SPLIT_FINALIZED_EVENT.getValue());
+			ifrsDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_IFRS_BALANCE_SPLIT_FINALIZED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXIFRSBalanceUpdatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_IFRS_BALANCE_UPDATED_EVENT.getValue());
+			ifrsDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_IFRS_BALANCE_UPDATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXIFRSBalanceUpdateFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_IFRS_BALANCE_UPDATED_FINALIZED_EVENT.getValue());
+			ifrsDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_IFRS_BALANCE_UPDATED_FINALIZED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	/** ----------------------- IFRS Events - End ---------------  **/
+
+//	@EventHandler
+	public void on(TXDocumentUpdatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TXOdsDocumentEnum.TXDocumentUpdatedEvent.name());
+			documentService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TXOdsDocumentEnum.TXDocumentUpdatedEvent.name(), TXOdsDocumentEnum.DOCUMENT.name(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+//	@EventHandler
+	public void on(TXBulkDocumentEligibilityCheckedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TXOdsDocumentEnum.TXBulkDocumentEligibilityCheckedEvent.name());
+			documentService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TXOdsDocumentEnum.TXBulkDocumentEligibilityCheckedEvent.name(), TXOdsDocumentEnum.DOCUMENT.name(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+//	@EventHandler
+	public void on(TXDocumentEligibilityCheckedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TXOdsDocumentEnum.TXDocumentEligibilityCheckedEvent.name());
+			documentService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TXOdsDocumentEnum.TXDocumentEligibilityCheckedEvent.name(), TXOdsDocumentEnum.DOCUMENT.name(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+//	@EventHandler
+	public void on(TXFinalizedDocumentEligibilityEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TXOdsDocumentEnum.TXFinalizedDocumentEligibilityEvent.name());
+			documentService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TXOdsDocumentEnum.TXFinalizedDocumentEligibilityEvent.name(), TXOdsDocumentEnum.DOCUMENT.name(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	/** ----------------------- Interest Events - End ---------------  **/
+	@EventHandler
+	public void on(TXNewInterestCreatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_NEW_INTEREST_CREATED_EVENT.getValue());
+			interestDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_NEW_INTEREST_CREATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXNewInterestFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_NEW_INTEREST_FINALIZED_EVENT.getValue());
+			interestDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_NEW_INTEREST_FINALIZED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXInterestClosedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_INTEREST_CLOSED_EVENT.getValue());
+			interestDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_INTEREST_CLOSED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXInterestCloseFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_INTEREST_CLOSE_FINALIZED_EVENT.getValue());
+			interestDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_INTEREST_CLOSE_FINALIZED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXInterestNextCollectionDateRefreshedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_INTEREST_NEXT_COLLECTION_DATE_REFRESHED_EVENT.getValue());
+			interestDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_INTEREST_NEXT_COLLECTION_DATE_REFRESHED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXInterestNextCollectionDateRefreshFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_INTEREST_NEXT_COLLECTION_DATE_REFRESHED_FINALIZED_EVENT.getValue());
+			interestDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_INTEREST_NEXT_COLLECTION_DATE_REFRESHED_FINALIZED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXInterestPricingUpdatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_INTEREST_PRICING_UPDATED_EVENT.getValue() + " with MessageIdentifier :"+messageIdentifier );
+			interestDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_INTEREST_PRICING_UPDATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXInterestPricingUpdateFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_INTEREST_PRICING_UPDATE_FINALIZED_EVENT.getValue());
+			interestDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_INTEREST_PRICING_UPDATE_FINALIZED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	/** TXICLAppendedEvent consumption is removed **/
+
+	@EventHandler
+	public void on(TXRCLRefreshedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_RCL_REFRESHED_EVENT.getValue());
+			interestDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_RCL_REFRESHED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXRCLRefreshFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_RCL_REFRESH_FINALIZED_EVENT.getValue());
+			interestDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_RCL_REFRESH_FINALIZED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+
+
+	/** ----------------------- Interest Events - End ---------------  **/
+
+	/** ----------------------- Followup Events - Start ---------------  **/
+
+	@EventHandler
+	public void on(TXFollowupSummaryCreatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_FOLLOWUP_SUMMARY_CREATED_EVENT.getValue());
+			followupSummaryService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_FOLLOWUP_SUMMARY_CREATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXFollowupCreatedUpdatedEvent event , @MessageIdentifier String messageIdentifier) {
+		log.info(LOG_REQUEST_RECEIVED, TX_FOLLOWUP_CREATED_UPDATED_EVENT.getValue());
+		try {
+			followupSummaryService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_FOLLOWUP_CREATED_UPDATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXCreateUpdateFollowupFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_CREATE_UPDATE_FOLLOWUP_FINALIZED_EVENT.getValue());
+			followupSummaryService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_CREATE_UPDATE_FOLLOWUP_FINALIZED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXFollowupGenerateRequestedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_FOLLOW_UP_GENERATE_REQUESTED_EVENT.getValue());
+			followupGenerateRequestService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_FOLLOW_UP_GENERATE_REQUESTED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXFollowupGeneratedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_FOLLOWUP_GENERATE_EVENT.getValue());
+			followupGenerateRequestService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_FOLLOWUP_GENERATE_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	/** ----------------------- Followup Events - End ---------------  **/
+
+
+	@EventHandler
+	public void on(TXAdviceGeneratedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_ADVICE_GENERATED_EVENT.getValue());
+			adviceGeneratedService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_ADVICE_GENERATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXFinanceEventHandledEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_FINANCE_EVENT_HANDLED_EVENT.getValue());
+			financeDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_FINANCE_EVENT_HANDLED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXFinanceReinstatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_FINANCE_REINSTATED_EVENT.getValue());
+			financeDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_FINANCE_REINSTATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXFinanceEventHandleFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_FINANCE_EVENT_HANDLED_FINALIZED_EVENT.getValue());
+			financeDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_FINANCE_EVENT_HANDLED_FINALIZED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXFinanceToPastdueTransferredEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_FINANCE_PAST_DUE_TRANSFERRED_EVENT.getValue());
+			financeDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_FINANCE_PAST_DUE_TRANSFERRED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXFollowupGenerateRecordedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_FOLLOWUP_GENERATE_RECORDED_EVENT.getValue());
+			financeDetailsService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_FOLLOWUP_GENERATE_RECORDED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+	@EventHandler
+	public void on(@RequestBody TXFollowupGenerateRecordFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_FOLLOWUP_GENERATE_RECORDED_FINALIZED_EVENT.getValue());
+			financeDetailsService.receiveEvent(event, messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_FOLLOWUP_GENERATE_RECORDED_FINALIZED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXErrorCaseCreatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_ERROR_CASE_CREATED_EVENT.getValue());
+			transactionService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_ERROR_CASE_CREATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXReferralCaseCreatedEvent event, @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_REFERRAL_CASE_CREATED_EVENT.getValue());
+			transactionService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_REFERRAL_CASE_CREATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	/*@EventHandler
+	public void on(TXDuplicateDocumentQueryCheckedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_DUPLICATE_DOCUMENT_QUERY_CHECKED_EVENT.getValue());
+			duplicateDocService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_DUPLICATE_DOCUMENT_QUERY_CHECKED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}*/
+
+	@EventHandler
+	public void on(TXACRTransactionStepCreatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_ACR_TRANSACTION_STEP_CREATED_EVENT.getValue() + " with MessageIdentifier :"+messageIdentifier );
+			transactionHeaderService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_ACR_TRANSACTION_STEP_CREATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXAdviceProcessingCompletedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_ADVICE_PROCESSING_COMPLETED_EVENT.getValue());
+			transactionHeaderService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_ADVICE_PROCESSING_COMPLETED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXAdditionalRemittanceInformationPublishedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_ADDITIONAL_REMITTANCE_INFORMATION_PUBLISHED_EVENT.getValue());
+			remittanceInformationService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_ADDITIONAL_REMITTANCE_INFORMATION_PUBLISHED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXTransactionPartiesIdentifiedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_TRANSACTION_PARTY_IDENTIFIED_EVENT.getValue());
+			partyDetailsService.receiveEvent(event, messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_TRANSACTION_PARTY_IDENTIFIED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	@SneakyThrows
+	public void on(TXAdjustInterestComputationListFinalizedEvent event, @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_ADJUST_INTEREST_COMPUTATION_LIST_FINALIZED_EVENT.getValue());
+			interestComputationDetailsService.receiveEvent(event, messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_ADJUST_INTEREST_COMPUTATION_LIST_FINALIZED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXCreateUpdateInterestComputationListFinalizedEvent event,
+			@MessageIdentifier String messageIdentifier) throws Exception {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_CREATE_UPDATE_INTEREST_COMPUTATION_LIST_FINALIZED_EVENT.getValue());
+			interestComputationDetailsService.receiveEvent(event, messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_CREATE_UPDATE_INTEREST_COMPUTATION_LIST_FINALIZED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXInterestComputationListAdjustedEvent event, @MessageIdentifier String messageIdentifier) throws Exception {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_INTEREST_COMPUTATION_LIST_ADJUSTED_EVENT.getValue());
+			interestComputationDetailsService.receiveEvent(event, messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_INTEREST_COMPUTATION_LIST_ADJUSTED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;		}
+	}
+
+	@EventHandler
+	public void on(TXInterestComputationListCreatedUpdatedEvent event, @MessageIdentifier String messageIdentifier) throws Exception {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_INTEREST_COMPUTATION_LIST_CREATED_UPDATED_EVENT.getValue());
+			interestComputationDetailsService.receiveEvent(event, messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_INTEREST_COMPUTATION_LIST_CREATED_UPDATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXNEWReadyforStepInitiationEvent event, @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_NEW_TRANSACTION_STEP_INITIATED_EVENT.getValue());
+			transactionHeaderService.receiveEvent(event, messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_NEW_TRANSACTION_STEP_INITIATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXFEVReadyforStepInitiationEvent event, @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_FEV_TRANSACTION_STEP_INITIATED_EVENT.getValue());
+			transactionHeaderService.receiveEvent(event, messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_FEV_TRANSACTION_STEP_INITIATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXDEVReadyforStepInitiationEvent event, @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_DEV_TRANSACTION_STEP_INITIATED_EVENT.getValue());
+			transactionHeaderService.receiveEvent(event, messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_DEV_TRANSACTION_STEP_INITIATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXMSCReadyforStepInitiationEvent event, @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_MSC_TRANSACTION_STEP_INITIATED_EVENT.getValue());
+			transactionHeaderService.receiveEvent(event, messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_MSC_TRANSACTION_STEP_INITIATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXACRReadyforStepInitiationEvent event, @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_ACR_TRANSACTION_STEP_INITIATED_EVENT.getValue());
+			transactionHeaderService.receiveEvent(event, messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_ACR_TRANSACTION_STEP_INITIATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+
+	@EventHandler
+	public void on(TXDeliveryDocumentValidationSuccessEvent event, @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_DELIVERY_DOCUMENT_VALIDATION_SUCCESS_EVENT.getValue());
+			deliveryDocumentService.receiveEvent(event, messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_DELIVERY_DOCUMENT_VALIDATION_SUCCESS_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+
+	}
+	
+	@EventHandler
+	public void on(TXAdviceDetailsOverriddenEvent event, @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_ADVICE_DETAILS_OVERRIDDEN_EVENT.getValue());
+			adviceDetailsOverriddenService.receiveEvent(event, messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_ADVICE_DETAILS_OVERRIDDEN_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+
+	}
+	
+	//@EventHandler
+	public void on(TXDuplicateDocumentIdentifiedEvent event, @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TXOdsDocumentEnum.TXDuplicateDocumentIdentifiedEvent.toString());
+			duplicateDocumentIdentifiedService.receiveEvent(event, messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TXOdsDocumentEnum.TXDuplicateDocumentIdentifiedEvent.toString(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+
+	}
+	
+	//@EventHandler
+	public void on(TXDocumentReferralIdentifiedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TXOdsDocumentEnum.TXDocumentReferralIdentifiedEvent.name());
+			documentExceptionService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TXOdsDocumentEnum.TXDocumentReferralIdentifiedEvent.name(), TXOdsDocumentEnum.DOCUMENT.name(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+	
+	@EventHandler
+	public void on(TXReprocessedPaymentEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_REPROCESSED_PAYMENT_EVENT.getValue());
+			reprocessedPaymentDetailsService.receiveEvent(event, messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_REPROCESSED_PAYMENT_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXCreditProtectionCreatedUpdatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_CREDIT_PROTECTION_CREATED_UPDATED_EVENT.getValue());
+			creditProtectionService.receiveEvent(event, messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_CREDIT_PROTECTION_CREATED_UPDATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+	
+	@EventHandler
+	public void on(TXCreateUpdateCreditProtectFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_CREATE_UPDATE_CREDIT_PROTECTION_FINALIZED_EVENT.getValue());
+			creditProtectionService.receiveEvent(event, messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_CREATE_UPDATE_CREDIT_PROTECTION_FINALIZED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+	
+	//Changes for Sell Down Events Start
+	
+		@EventHandler
+		public void on(TXSelldownCreatedUpdatedEvent event , @MessageIdentifier String messageIdentifier) {
+			try {
+				log.info(LOG_REQUEST_RECEIVED, TX_SELLDOWN_CREATED_UPDATED_EVENT.getValue());
+				sellDownService.receiveEvent(event, messageIdentifier);
+			} catch (Exception e) {
+				SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+						TX_SELLDOWN_CREATED_UPDATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+						TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+				throw e;
+			}
+		}
+		
+		@EventHandler
+		public void on(TXSelldownCreatedUpdatedFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+			try {
+				log.info(LOG_REQUEST_RECEIVED, TX_SELLDOWN_CREATED_UPDATED_FINALIZED_EVENT.getValue());
+				sellDownService.receiveEvent(event, messageIdentifier);
+			} catch (Exception e) {
+				SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+						TX_SELLDOWN_CREATED_UPDATED_FINALIZED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+						TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+				throw e;
+			}
+		}
+		
+		@EventHandler
+		public void on(TXAccrualInformationForSellDownUpdatedEvent event , @MessageIdentifier String messageIdentifier) {
+			try {
+				log.info(LOG_REQUEST_RECEIVED, TX_ACCRUAL_INFORMATION_SELLDOWN_UPDATED_EVENT.getValue());
+			  	sellDownService.receiveEvent(event, messageIdentifier);
+			} catch (Exception e) {
+				SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+						TX_ACCRUAL_INFORMATION_SELLDOWN_UPDATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+						TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+				throw e;
+			}
+		}
+		
+		@EventHandler
+		public void on(TXAccrualInformationForSellDownUpdatedFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+			try {
+				log.info(LOG_REQUEST_RECEIVED, TX_ACCRUAL_INFORMATION_SELLDOWN_UPDATED_FINALIZED_EVENT.getValue());
+				sellDownService.receiveEvent(event, messageIdentifier);
+			} catch (Exception e) {
+				SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+						TX_ACCRUAL_INFORMATION_SELLDOWN_UPDATED_FINALIZED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+						TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+				throw e;
+			}
+		}
+		
+		//Changes for Sell Down Events End
+
+	/** ----------------------- Asset Backed Securitization Events - Start ---------------  **/
+
+	@EventHandler
+	public void on(TXAssetBackedSecuritizationCreatedUpdatedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_ASSET_BACKED_SECURITIZATION_CREATED_UPDATED_EVENT.getValue());
+			assetBackedSecuritizationService.receiveEvent(event, messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_ASSET_BACKED_SECURITIZATION_CREATED_UPDATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXCreateUpdateAssetBackedSecuritizationFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_ASSET_BACKED_SECURITIZATION_CREATED_UPDATED_EVENT.getValue());
+			assetBackedSecuritizationService.receiveEvent(event, messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_ASSET_BACKED_SECURITIZATION_CREATED_UPDATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+    /** ----------------------- Asset Backed Securitization Events - End ---------------  **/
+
+	@EventHandler
+	public void on(TXRiskDistributionForFinanceRecordedEvent event, @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_RISK_DISTRIBUTION_FINANCE_RECORDED_EVENT.getValue());
+			riskDistributionForFinanceRecordedService.receiveEvent(event, messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_ASSET_BACKED_SECURITIZATION_CREATED_UPDATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXRiskDistributionForFinanceRecordFinalizedEvent event, @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_RISK_DISTRIBUTION_FINANCE_RECORDED_FINALIZED_EVENT.getValue());
+			riskDistributionForFinanceRecordedService.receiveEvent(event, messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_ASSET_BACKED_SECURITIZATION_CREATED_UPDATED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+	@EventHandler
+	public void on(TXL1JournalSetupRetrievedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TX_L1_JOURNAL_SETUP_RETRIEVED_EVENT.getValue());
+			journalSetupRetrievedService.receiveEvent(event, messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TX_CREATE_UPDATE_CREDIT_PROTECTION_FINALIZED_EVENT.getValue(), TRANSACTION.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+//	@EventHandler
+	public void on(TXDocumentSettlementProcessedEvent event, @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, "TXDocumentSettlementProcessedEvent");
+			documentSettlementService.receiveEvent(event, messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					"TXDocumentSettlementProcessedEvent", DOCUMENT.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+//	@EventHandler
+	public void on(TXDocumentSettlementFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, "TXDocumentSettlementProcessedEvent");
+			documentSettlementService.receiveEvent(event, messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					"TXDocumentSettlementProcessedEvent", DOCUMENT.getValue(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+//	@EventHandler
+	public void on(TXDocumentFinanceProcessedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TXOdsDocumentEnum.TXDocumentFinanceProcessedEvent.name());
+			documentService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TXOdsDocumentEnum.TXDocumentFinanceProcessedEvent.name(), TXOdsDocumentEnum.DOCUMENT.name(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+//	@EventHandler
+	public void on(TXDocumentFinanceFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, TXOdsDocumentEnum.TXDocumentFinanceFinalizedEvent.name());
+			documentService.receiveEvent(event,messageIdentifier);
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					TXOdsDocumentEnum.TXDocumentFinanceFinalizedEvent.name(), TXOdsDocumentEnum.DOCUMENT.name(), "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+
+   /** ----------------------- BusinessDate Events - Start ---------------  **/
+
+	@EventHandler
+	public void on(TXBusinessDateChangeProcessCompletedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, "TXBusinessDateChangeProcessCompletedEvent");
+			businessDateHelper.businessDateMessagePublisher(event, messageIdentifier, "odsbusinessdate-evt-out-0", "TXBusinessDateChangeProcessCompletedEvent");
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					"TXBusinessDateChangeProcessCompletedEvent", "BUSINESSDATE", "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+	
+	@EventHandler
+	public void on(TXBusinessDateCreateFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, "TXBusinessDateCreateFinalizedEvent");
+			businessDateHelper.businessDateMessagePublisher(event, messageIdentifier, "odsbusinessdate-evt-out-0", "TXBusinessDateCreateFinalizedEvent");
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					"TXBusinessDateCreateFinalizedEvent", "BUSINESSDATE", "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+	
+	@EventHandler
+	public void on(TXBusinessDateAmendFinalizedEvent event , @MessageIdentifier String messageIdentifier) {
+		try {
+			log.info(LOG_REQUEST_RECEIVED, "TXBusinessDateAmendFinalizedEvent");
+			businessDateHelper.businessDateMessagePublisher(event, messageIdentifier, "odsbusinessdate-evt-out-0", "TXBusinessDateAmendFinalizedEvent");
+		} catch (Exception e) {
+			SCARFLogger.logSkynetEvents(TXOdsTransactionConstants.consumption_error_identifier, TXOdsTransactionConstants.country_code, TXOdsEventStatusEnum.FAILED.name(),
+					"TXBusinessDateAmendFinalizedEvent", "BUSINESSDATE", "", messageIdentifier,
+					TXOdsTransactionConstants.mapped_application, new SCException(TXOdsTransactionConstants.consumption_error_message, TXOdsTransactionConstants.consumption_error_code));
+			throw e;
+		}
+	}
+	
+	   /** ----------------------- BusinessDate Events - End --------------- **/ 
+}
