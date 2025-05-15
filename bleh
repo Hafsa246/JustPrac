@@ -15,3 +15,68 @@ private TXOdsTransactionHeader populateCounterPartyDetails(TXReferenceDataGeneri
 		}
 		return transHeader;
 	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+@SneakyThrows
+	public void receiveEvent(TXL1GenericDetailsRetrievedEvent event, String messageIdentifier) {
+		TXOdsTransactionBO transactionBO = new TXOdsTransactionBO();
+		try {
+			String eventJson = mapper.writeValueAsString(event);
+			log.info(LOG_CONSOLIDATE_START, TX_L1_GENERIC_DETAILS_RETRIEVED_EVENT.getValue(),
+					event.getTxStepDetails().getStepAssociationID());
+			if (isEventMessageValid(commonServiceHelper.isEventTrackingEnable, event.getTransactionTracker())
+					 && loggingService.fetchAndCheckEvent(messageIdentifier)) {
+
+				TXTransactionReference txnReference = event.getTxStepDetails().getTxTransactionDetails()
+						.getTransactionReference();
+				TXStepNumber stepNumber = event.getTxStepDetails().getStepNumber();
+				TXUUID stepAssociationId = event.getTxStepDetails().getStepAssociationID();
+				loggingService.saveEventReceived(messageIdentifier, TX_L1_GENERIC_DETAILS_RETRIEVED_EVENT.getValue(),
+						TXOdsTransactionConstants.TRANSACTION, stepAssociationId, txnReference, eventJson, stepNumber);
+				try {
+					boolean isValid = validateEventPayload(eventJson, messageIdentifier,
+							TX_L1_GENERIC_DETAILS_RETRIEVED_EVENT.getValue());
+					if (isValid) {
+						TXOdsTransactionEO transactionEO = commonServiceHelper.checkIfTransactionEOExists(txnReference,
+								stepNumber, stepAssociationId);
+						transactionBO = commonServiceHelper.populateTransactionBO(transactionEO,
+								event.getTransactionTracker(), event.getTxStepDetails(),
+								TXOdsTransactionEnum.TX_L1_GENERIC_DETAILS_RETRIEVED_EVENT.getValue(), null, null);
+
+						transactionBO.setPayload(
+								referenceDataHelper.consolidateGenericEventPayload(event, transactionBO.getPayload()));
+						commonServiceHelper.saveTransactionConsolidateObject(transactionBO, transactionEO);
+						loggingService.updateEventLogging(messageIdentifier,
+								transactionBO.getHeader().getMessageTrackingDetails().getMessageId());
+
+						commonServiceHelper.publishEventsInList(
+								TXOdsTransactionEnum.TX_L1_GENERIC_DETAILS_RETRIEVED_EVENT.getValue(), transactionBO);
+
+						log.info(LOG_CONSOLIDATE_END, TX_L1_GENERIC_DETAILS_RETRIEVED_EVENT.getValue());
+					}
+				} catch (Exception e) {
+					log.error(LOG_ERROR_CONSOLIDATE, TX_L1_GENERIC_DETAILS_RETRIEVED_EVENT.getValue(), e);
+					loggingService.updateFailedEventLogging(messageIdentifier,
+							transactionBO.getHeader().getMessageTrackingDetails().getMessageId(), e.getMessage());
+				}
+			} else {
+				log.info(LOG_ERROR_NULL_MSG_ID, TX_L1_GENERIC_DETAILS_RETRIEVED_EVENT.getValue());
+			}
+		} catch (Exception e) {
+			log.error(LOG_ERROR_CONSUME, TX_L1_GENERIC_DETAILS_RETRIEVED_EVENT.getValue(), e);
+			loggingService.updateFailedEventLogging(messageIdentifier,
+					transactionBO.getHeader().getMessageTrackingDetails().getMessageId(), e.getMessage());
+			throw e;
+		}
+	}
