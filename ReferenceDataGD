@@ -1,0 +1,53 @@
+package com.sc.refdata.dto;
+
+
+import java.io.Serializable;
+
+import com.sc.model.*;
+import com.sc.rd.counterPartyDetails.query.dto.TXSFCounterPartyDetails;
+import jakarta.validation.Valid;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.sc.core.currency.TXCurrency;
+import com.sc.model.limit.TXLimitGroup;
+import com.sc.refdata.model.TXBCATermsReferenceData;
+import com.sc.refdata.model.TXBookingLocationReferenceData;
+import com.sc.refdata.model.TXBranchReferenceData;
+import com.sc.refdata.model.TXFinanceTenorCheck;
+import com.sc.refdata.model.TXReferenceDataProductDetails;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@AllArgsConstructor
+@Builder
+@NoArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class TXReferenceDataGenericDetails implements Serializable {
+	private static final long serialVersionUID = -3234847057833019585L;
+	@Valid
+	TXInstitution institution;
+	TXBookingLocation txBookingLocation;
+	TXTransactionReference transactionReference;
+	TXStepNumber stepNumber;
+	TXPartyID customerID;
+	TXDate transactionDate;
+	TXProduct product;
+	TXStep step;
+	TXSubStep subStep;
+	TXBookingLocationReferenceData txBookingLocationDetails;
+	@Valid
+	TXCustomerDetailsDto customerDetails;
+	TXBCATermsReferenceData bcaTermsDetails;
+	TXFinanceTenorCheck financeTenorCheck;
+	TXBranchReferenceData branchDetails;
+	TXReferenceDataProductDetails productDetails;
+	TXLimitGroup limitGroupID;
+	TXCurrency transactionCurrency;
+	TXCDOModel cdoModel;
+	TXSFCounterPartyDetails counterPartyDetails;
+	TXRebateDetails rebateDetails;
+}
