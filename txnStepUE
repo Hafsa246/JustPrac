@@ -1,0 +1,68 @@
+package com.sc.txn.events;
+
+import java.util.List;
+
+import com.sc.core.event.TXBaseEvent;
+import com.sc.document.data.TXAttachmentDetails;
+import com.sc.document.data.TXPartyDetails;
+import com.sc.document.data.TXSettlementInstructionsAccountDetails;
+import com.sc.document.data.TXSustainableFinanceRemarksReason;
+import com.sc.model.*;
+import com.sc.model.limit.TXLimitGroup;
+import com.sc.model.vmt.TXVMTFinOption;
+import com.sc.txn.data.TXRegistrationDetails;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@EqualsAndHashCode(callSuper = false)
+public class TXTransactionStepUpdatedEvent extends TXBaseEvent {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+
+	private String transactionStepReference;
+	private TXRegistrationDetails transactionStepDetails;
+	private TXTransactionStepStatus stepStatus;
+	private List<TXPartyDetails> headerParties;
+	private TXValueDateOption valueDateOption;
+	private TXDate valueDate;
+	private TXIsSummaryListing isSummaryListing;
+	private TXFinanceType financeType;
+	private TXBoolean isSustainable;
+	private TXComplianceCheckStatus complianceCheckStatus;
+	private TXUUID bcaTermsID;
+	private TXLimitGroup limitGroupID; 
+	private TXAttachmentDetails attachmentDetails;
+	private TXClientInstructions  clientRemarks;
+	private TXBoolean transactionOverrideFlag;
+	private TXReferralStatus referralStatus;
+	private TXBoolean previousEBBSReferral;
+	private TXLimitStatus limitStatus;
+	private TXCustomerServiceLevel customerServiceLevel;
+	private TXISOCountry bookingCountry;
+	private TXDocSubmitRefID docSubmitRefID;
+	private TXBoolean allFXContractsVerified;
+	private TXBTCID btcID;
+	private TXBoolean dabProcessFlag;
+	private TXSettlementInstructionsAccountDetails chargeSettlementInstructions;
+	private TXSustainableFinanceRemarksReason sustainableFinanceRemarksReason;
+	private TXRemarks sustainableFinanceRemarksOther;
+	private TXBoolean editedFlag;
+	private TXPartyName counterPartyName;
+	@Builder.Default
+	private TXBoolean isInLieuChargedonExchange = TXBoolean.FALSE;
+	private TXVMTFinOption financingOption;
+	private TXEmailIndemnityHeld emailIndemnityHeld;
+	private TXSignatureVerification signatureVerification;
+	private TXBoolean directPayment;
+}
