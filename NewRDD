@@ -1,0 +1,569 @@
+//
+// Source code recreated from a .class file by IntelliJ IDEA
+// (powered by FernFlower decompiler)
+//
+
+package com.sc.model.transaction.payload.referencedata;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.sc.model.TXUUID;
+import java.io.Serializable;
+import java.util.List;
+import org.apache.avro.reflect.Nullable;
+
+@JsonIgnoreProperties(
+    ignoreUnknown = true
+)
+@JsonInclude(Include.NON_NULL)
+public class TXOdsReferenceDataDetails implements Serializable {
+    private static final long serialVersionUID = -3404205299481439075L;
+    @Nullable
+    private TXUUID associationID;
+    @Nullable
+    private List<TXOdsChargeSetupDetails> chargeSetupDetails;
+    @Nullable
+    private TXOdsComplianceDetails complianceDetails;
+    @Nullable
+    private TXOdsRiskIndicatorDetails riskIndicatorDetails;
+    @Nullable
+    private TXOdsDocumentDetails documentDetails;
+    @Nullable
+    private List<TXOdsFinanceDetails> financeDetails;
+    @Nullable
+    private TXOdsGenericDetails genericDetails;
+    @Nullable
+    private TXOdsLimitDetails limitDetails;
+    @Nullable
+    private TXOdsMarginDetails marginDetails;
+    @Nullable
+    private TXOdsTaxDetails taxDetails;
+    @Nullable
+    private TXOdsTransactionDetails transactionDetails;
+    @Nullable
+    private List<TXOdsTransactionSHIDetails> transactionSHIDetails;
+    @Nullable
+    private TXOdsInterfacedetails interfaceDetails;
+    @Nullable
+    private TXOdsSanctionsDetails sanctionsDetails;
+    @Nullable
+    private TXOdsOutwardPaymentDetails outwardPaymentDetails;
+    @Nullable
+    private List<TXOdsAdviceDetail> adviceDetails;
+    @Nullable
+    private TXOdsL1JournalDetails journalDetails;
+
+    public static TXOdsReferenceDataDetailsBuilder builder() {
+        return new TXOdsReferenceDataDetailsBuilder();
+    }
+
+    public TXUUID getAssociationID() {
+        return this.associationID;
+    }
+
+    public List<TXOdsChargeSetupDetails> getChargeSetupDetails() {
+        return this.chargeSetupDetails;
+    }
+
+    public TXOdsComplianceDetails getComplianceDetails() {
+        return this.complianceDetails;
+    }
+
+    public TXOdsRiskIndicatorDetails getRiskIndicatorDetails() {
+        return this.riskIndicatorDetails;
+    }
+
+    public TXOdsDocumentDetails getDocumentDetails() {
+        return this.documentDetails;
+    }
+
+    public List<TXOdsFinanceDetails> getFinanceDetails() {
+        return this.financeDetails;
+    }
+
+    public TXOdsGenericDetails getGenericDetails() {
+        return this.genericDetails;
+    }
+
+    public TXOdsLimitDetails getLimitDetails() {
+        return this.limitDetails;
+    }
+
+    public TXOdsMarginDetails getMarginDetails() {
+        return this.marginDetails;
+    }
+
+    public TXOdsTaxDetails getTaxDetails() {
+        return this.taxDetails;
+    }
+
+    public TXOdsTransactionDetails getTransactionDetails() {
+        return this.transactionDetails;
+    }
+
+    public List<TXOdsTransactionSHIDetails> getTransactionSHIDetails() {
+        return this.transactionSHIDetails;
+    }
+
+    public TXOdsInterfacedetails getInterfaceDetails() {
+        return this.interfaceDetails;
+    }
+
+    public TXOdsSanctionsDetails getSanctionsDetails() {
+        return this.sanctionsDetails;
+    }
+
+    public TXOdsOutwardPaymentDetails getOutwardPaymentDetails() {
+        return this.outwardPaymentDetails;
+    }
+
+    public List<TXOdsAdviceDetail> getAdviceDetails() {
+        return this.adviceDetails;
+    }
+
+    public TXOdsL1JournalDetails getJournalDetails() {
+        return this.journalDetails;
+    }
+
+    public void setAssociationID(TXUUID associationID) {
+        this.associationID = associationID;
+    }
+
+    public void setChargeSetupDetails(List<TXOdsChargeSetupDetails> chargeSetupDetails) {
+        this.chargeSetupDetails = chargeSetupDetails;
+    }
+
+    public void setComplianceDetails(TXOdsComplianceDetails complianceDetails) {
+        this.complianceDetails = complianceDetails;
+    }
+
+    public void setRiskIndicatorDetails(TXOdsRiskIndicatorDetails riskIndicatorDetails) {
+        this.riskIndicatorDetails = riskIndicatorDetails;
+    }
+
+    public void setDocumentDetails(TXOdsDocumentDetails documentDetails) {
+        this.documentDetails = documentDetails;
+    }
+
+    public void setFinanceDetails(List<TXOdsFinanceDetails> financeDetails) {
+        this.financeDetails = financeDetails;
+    }
+
+    public void setGenericDetails(TXOdsGenericDetails genericDetails) {
+        this.genericDetails = genericDetails;
+    }
+
+    public void setLimitDetails(TXOdsLimitDetails limitDetails) {
+        this.limitDetails = limitDetails;
+    }
+
+    public void setMarginDetails(TXOdsMarginDetails marginDetails) {
+        this.marginDetails = marginDetails;
+    }
+
+    public void setTaxDetails(TXOdsTaxDetails taxDetails) {
+        this.taxDetails = taxDetails;
+    }
+
+    public void setTransactionDetails(TXOdsTransactionDetails transactionDetails) {
+        this.transactionDetails = transactionDetails;
+    }
+
+    public void setTransactionSHIDetails(List<TXOdsTransactionSHIDetails> transactionSHIDetails) {
+        this.transactionSHIDetails = transactionSHIDetails;
+    }
+
+    public void setInterfaceDetails(TXOdsInterfacedetails interfaceDetails) {
+        this.interfaceDetails = interfaceDetails;
+    }
+
+    public void setSanctionsDetails(TXOdsSanctionsDetails sanctionsDetails) {
+        this.sanctionsDetails = sanctionsDetails;
+    }
+
+    public void setOutwardPaymentDetails(TXOdsOutwardPaymentDetails outwardPaymentDetails) {
+        this.outwardPaymentDetails = outwardPaymentDetails;
+    }
+
+    public void setAdviceDetails(List<TXOdsAdviceDetail> adviceDetails) {
+        this.adviceDetails = adviceDetails;
+    }
+
+    public void setJournalDetails(TXOdsL1JournalDetails journalDetails) {
+        this.journalDetails = journalDetails;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        } else if (!(o instanceof TXOdsReferenceDataDetails)) {
+            return false;
+        } else {
+            TXOdsReferenceDataDetails other = (TXOdsReferenceDataDetails)o;
+            if (!other.canEqual(this)) {
+                return false;
+            } else {
+                Object this$associationID = this.getAssociationID();
+                Object other$associationID = other.getAssociationID();
+                if (this$associationID == null) {
+                    if (other$associationID != null) {
+                        return false;
+                    }
+                } else if (!this$associationID.equals(other$associationID)) {
+                    return false;
+                }
+
+                Object this$chargeSetupDetails = this.getChargeSetupDetails();
+                Object other$chargeSetupDetails = other.getChargeSetupDetails();
+                if (this$chargeSetupDetails == null) {
+                    if (other$chargeSetupDetails != null) {
+                        return false;
+                    }
+                } else if (!this$chargeSetupDetails.equals(other$chargeSetupDetails)) {
+                    return false;
+                }
+
+                Object this$complianceDetails = this.getComplianceDetails();
+                Object other$complianceDetails = other.getComplianceDetails();
+                if (this$complianceDetails == null) {
+                    if (other$complianceDetails != null) {
+                        return false;
+                    }
+                } else if (!this$complianceDetails.equals(other$complianceDetails)) {
+                    return false;
+                }
+
+                Object this$riskIndicatorDetails = this.getRiskIndicatorDetails();
+                Object other$riskIndicatorDetails = other.getRiskIndicatorDetails();
+                if (this$riskIndicatorDetails == null) {
+                    if (other$riskIndicatorDetails != null) {
+                        return false;
+                    }
+                } else if (!this$riskIndicatorDetails.equals(other$riskIndicatorDetails)) {
+                    return false;
+                }
+
+                Object this$documentDetails = this.getDocumentDetails();
+                Object other$documentDetails = other.getDocumentDetails();
+                if (this$documentDetails == null) {
+                    if (other$documentDetails != null) {
+                        return false;
+                    }
+                } else if (!this$documentDetails.equals(other$documentDetails)) {
+                    return false;
+                }
+
+                Object this$financeDetails = this.getFinanceDetails();
+                Object other$financeDetails = other.getFinanceDetails();
+                if (this$financeDetails == null) {
+                    if (other$financeDetails != null) {
+                        return false;
+                    }
+                } else if (!this$financeDetails.equals(other$financeDetails)) {
+                    return false;
+                }
+
+                Object this$genericDetails = this.getGenericDetails();
+                Object other$genericDetails = other.getGenericDetails();
+                if (this$genericDetails == null) {
+                    if (other$genericDetails != null) {
+                        return false;
+                    }
+                } else if (!this$genericDetails.equals(other$genericDetails)) {
+                    return false;
+                }
+
+                Object this$limitDetails = this.getLimitDetails();
+                Object other$limitDetails = other.getLimitDetails();
+                if (this$limitDetails == null) {
+                    if (other$limitDetails != null) {
+                        return false;
+                    }
+                } else if (!this$limitDetails.equals(other$limitDetails)) {
+                    return false;
+                }
+
+                Object this$marginDetails = this.getMarginDetails();
+                Object other$marginDetails = other.getMarginDetails();
+                if (this$marginDetails == null) {
+                    if (other$marginDetails != null) {
+                        return false;
+                    }
+                } else if (!this$marginDetails.equals(other$marginDetails)) {
+                    return false;
+                }
+
+                Object this$taxDetails = this.getTaxDetails();
+                Object other$taxDetails = other.getTaxDetails();
+                if (this$taxDetails == null) {
+                    if (other$taxDetails != null) {
+                        return false;
+                    }
+                } else if (!this$taxDetails.equals(other$taxDetails)) {
+                    return false;
+                }
+
+                Object this$transactionDetails = this.getTransactionDetails();
+                Object other$transactionDetails = other.getTransactionDetails();
+                if (this$transactionDetails == null) {
+                    if (other$transactionDetails != null) {
+                        return false;
+                    }
+                } else if (!this$transactionDetails.equals(other$transactionDetails)) {
+                    return false;
+                }
+
+                Object this$transactionSHIDetails = this.getTransactionSHIDetails();
+                Object other$transactionSHIDetails = other.getTransactionSHIDetails();
+                if (this$transactionSHIDetails == null) {
+                    if (other$transactionSHIDetails != null) {
+                        return false;
+                    }
+                } else if (!this$transactionSHIDetails.equals(other$transactionSHIDetails)) {
+                    return false;
+                }
+
+                Object this$interfaceDetails = this.getInterfaceDetails();
+                Object other$interfaceDetails = other.getInterfaceDetails();
+                if (this$interfaceDetails == null) {
+                    if (other$interfaceDetails != null) {
+                        return false;
+                    }
+                } else if (!this$interfaceDetails.equals(other$interfaceDetails)) {
+                    return false;
+                }
+
+                Object this$sanctionsDetails = this.getSanctionsDetails();
+                Object other$sanctionsDetails = other.getSanctionsDetails();
+                if (this$sanctionsDetails == null) {
+                    if (other$sanctionsDetails != null) {
+                        return false;
+                    }
+                } else if (!this$sanctionsDetails.equals(other$sanctionsDetails)) {
+                    return false;
+                }
+
+                Object this$outwardPaymentDetails = this.getOutwardPaymentDetails();
+                Object other$outwardPaymentDetails = other.getOutwardPaymentDetails();
+                if (this$outwardPaymentDetails == null) {
+                    if (other$outwardPaymentDetails != null) {
+                        return false;
+                    }
+                } else if (!this$outwardPaymentDetails.equals(other$outwardPaymentDetails)) {
+                    return false;
+                }
+
+                Object this$adviceDetails = this.getAdviceDetails();
+                Object other$adviceDetails = other.getAdviceDetails();
+                if (this$adviceDetails == null) {
+                    if (other$adviceDetails != null) {
+                        return false;
+                    }
+                } else if (!this$adviceDetails.equals(other$adviceDetails)) {
+                    return false;
+                }
+
+                Object this$journalDetails = this.getJournalDetails();
+                Object other$journalDetails = other.getJournalDetails();
+                if (this$journalDetails == null) {
+                    if (other$journalDetails != null) {
+                        return false;
+                    }
+                } else if (!this$journalDetails.equals(other$journalDetails)) {
+                    return false;
+                }
+
+                return true;
+            }
+        }
+    }
+
+    protected boolean canEqual(Object other) {
+        return other instanceof TXOdsReferenceDataDetails;
+    }
+
+    public int hashCode() {
+        int PRIME = 59;
+        int result = 1;
+        Object $associationID = this.getAssociationID();
+        result = result * 59 + ($associationID == null ? 43 : $associationID.hashCode());
+        Object $chargeSetupDetails = this.getChargeSetupDetails();
+        result = result * 59 + ($chargeSetupDetails == null ? 43 : $chargeSetupDetails.hashCode());
+        Object $complianceDetails = this.getComplianceDetails();
+        result = result * 59 + ($complianceDetails == null ? 43 : $complianceDetails.hashCode());
+        Object $riskIndicatorDetails = this.getRiskIndicatorDetails();
+        result = result * 59 + ($riskIndicatorDetails == null ? 43 : $riskIndicatorDetails.hashCode());
+        Object $documentDetails = this.getDocumentDetails();
+        result = result * 59 + ($documentDetails == null ? 43 : $documentDetails.hashCode());
+        Object $financeDetails = this.getFinanceDetails();
+        result = result * 59 + ($financeDetails == null ? 43 : $financeDetails.hashCode());
+        Object $genericDetails = this.getGenericDetails();
+        result = result * 59 + ($genericDetails == null ? 43 : $genericDetails.hashCode());
+        Object $limitDetails = this.getLimitDetails();
+        result = result * 59 + ($limitDetails == null ? 43 : $limitDetails.hashCode());
+        Object $marginDetails = this.getMarginDetails();
+        result = result * 59 + ($marginDetails == null ? 43 : $marginDetails.hashCode());
+        Object $taxDetails = this.getTaxDetails();
+        result = result * 59 + ($taxDetails == null ? 43 : $taxDetails.hashCode());
+        Object $transactionDetails = this.getTransactionDetails();
+        result = result * 59 + ($transactionDetails == null ? 43 : $transactionDetails.hashCode());
+        Object $transactionSHIDetails = this.getTransactionSHIDetails();
+        result = result * 59 + ($transactionSHIDetails == null ? 43 : $transactionSHIDetails.hashCode());
+        Object $interfaceDetails = this.getInterfaceDetails();
+        result = result * 59 + ($interfaceDetails == null ? 43 : $interfaceDetails.hashCode());
+        Object $sanctionsDetails = this.getSanctionsDetails();
+        result = result * 59 + ($sanctionsDetails == null ? 43 : $sanctionsDetails.hashCode());
+        Object $outwardPaymentDetails = this.getOutwardPaymentDetails();
+        result = result * 59 + ($outwardPaymentDetails == null ? 43 : $outwardPaymentDetails.hashCode());
+        Object $adviceDetails = this.getAdviceDetails();
+        result = result * 59 + ($adviceDetails == null ? 43 : $adviceDetails.hashCode());
+        Object $journalDetails = this.getJournalDetails();
+        result = result * 59 + ($journalDetails == null ? 43 : $journalDetails.hashCode());
+        return result;
+    }
+
+    public String toString() {
+        TXUUID var10000 = this.getAssociationID();
+        return "TXOdsReferenceDataDetails(associationID=" + var10000 + ", chargeSetupDetails=" + this.getChargeSetupDetails() + ", complianceDetails=" + this.getComplianceDetails() + ", riskIndicatorDetails=" + this.getRiskIndicatorDetails() + ", documentDetails=" + this.getDocumentDetails() + ", financeDetails=" + this.getFinanceDetails() + ", genericDetails=" + this.getGenericDetails() + ", limitDetails=" + this.getLimitDetails() + ", marginDetails=" + this.getMarginDetails() + ", taxDetails=" + this.getTaxDetails() + ", transactionDetails=" + this.getTransactionDetails() + ", transactionSHIDetails=" + this.getTransactionSHIDetails() + ", interfaceDetails=" + this.getInterfaceDetails() + ", sanctionsDetails=" + this.getSanctionsDetails() + ", outwardPaymentDetails=" + this.getOutwardPaymentDetails() + ", adviceDetails=" + this.getAdviceDetails() + ", journalDetails=" + this.getJournalDetails() + ")";
+    }
+
+    public TXOdsReferenceDataDetails() {
+    }
+
+    public TXOdsReferenceDataDetails(TXUUID associationID, List<TXOdsChargeSetupDetails> chargeSetupDetails, TXOdsComplianceDetails complianceDetails, TXOdsRiskIndicatorDetails riskIndicatorDetails, TXOdsDocumentDetails documentDetails, List<TXOdsFinanceDetails> financeDetails, TXOdsGenericDetails genericDetails, TXOdsLimitDetails limitDetails, TXOdsMarginDetails marginDetails, TXOdsTaxDetails taxDetails, TXOdsTransactionDetails transactionDetails, List<TXOdsTransactionSHIDetails> transactionSHIDetails, TXOdsInterfacedetails interfaceDetails, TXOdsSanctionsDetails sanctionsDetails, TXOdsOutwardPaymentDetails outwardPaymentDetails, List<TXOdsAdviceDetail> adviceDetails, TXOdsL1JournalDetails journalDetails) {
+        this.associationID = associationID;
+        this.chargeSetupDetails = chargeSetupDetails;
+        this.complianceDetails = complianceDetails;
+        this.riskIndicatorDetails = riskIndicatorDetails;
+        this.documentDetails = documentDetails;
+        this.financeDetails = financeDetails;
+        this.genericDetails = genericDetails;
+        this.limitDetails = limitDetails;
+        this.marginDetails = marginDetails;
+        this.taxDetails = taxDetails;
+        this.transactionDetails = transactionDetails;
+        this.transactionSHIDetails = transactionSHIDetails;
+        this.interfaceDetails = interfaceDetails;
+        this.sanctionsDetails = sanctionsDetails;
+        this.outwardPaymentDetails = outwardPaymentDetails;
+        this.adviceDetails = adviceDetails;
+        this.journalDetails = journalDetails;
+    }
+
+    public static class TXOdsReferenceDataDetailsBuilder {
+        private TXUUID associationID;
+        private List<TXOdsChargeSetupDetails> chargeSetupDetails;
+        private TXOdsComplianceDetails complianceDetails;
+        private TXOdsRiskIndicatorDetails riskIndicatorDetails;
+        private TXOdsDocumentDetails documentDetails;
+        private List<TXOdsFinanceDetails> financeDetails;
+        private TXOdsGenericDetails genericDetails;
+        private TXOdsLimitDetails limitDetails;
+        private TXOdsMarginDetails marginDetails;
+        private TXOdsTaxDetails taxDetails;
+        private TXOdsTransactionDetails transactionDetails;
+        private List<TXOdsTransactionSHIDetails> transactionSHIDetails;
+        private TXOdsInterfacedetails interfaceDetails;
+        private TXOdsSanctionsDetails sanctionsDetails;
+        private TXOdsOutwardPaymentDetails outwardPaymentDetails;
+        private List<TXOdsAdviceDetail> adviceDetails;
+        private TXOdsL1JournalDetails journalDetails;
+
+        TXOdsReferenceDataDetailsBuilder() {
+        }
+
+        public TXOdsReferenceDataDetailsBuilder associationID(TXUUID associationID) {
+            this.associationID = associationID;
+            return this;
+        }
+
+        public TXOdsReferenceDataDetailsBuilder chargeSetupDetails(List<TXOdsChargeSetupDetails> chargeSetupDetails) {
+            this.chargeSetupDetails = chargeSetupDetails;
+            return this;
+        }
+
+        public TXOdsReferenceDataDetailsBuilder complianceDetails(TXOdsComplianceDetails complianceDetails) {
+            this.complianceDetails = complianceDetails;
+            return this;
+        }
+
+        public TXOdsReferenceDataDetailsBuilder riskIndicatorDetails(TXOdsRiskIndicatorDetails riskIndicatorDetails) {
+            this.riskIndicatorDetails = riskIndicatorDetails;
+            return this;
+        }
+
+        public TXOdsReferenceDataDetailsBuilder documentDetails(TXOdsDocumentDetails documentDetails) {
+            this.documentDetails = documentDetails;
+            return this;
+        }
+
+        public TXOdsReferenceDataDetailsBuilder financeDetails(List<TXOdsFinanceDetails> financeDetails) {
+            this.financeDetails = financeDetails;
+            return this;
+        }
+
+        public TXOdsReferenceDataDetailsBuilder genericDetails(TXOdsGenericDetails genericDetails) {
+            this.genericDetails = genericDetails;
+            return this;
+        }
+
+        public TXOdsReferenceDataDetailsBuilder limitDetails(TXOdsLimitDetails limitDetails) {
+            this.limitDetails = limitDetails;
+            return this;
+        }
+
+        public TXOdsReferenceDataDetailsBuilder marginDetails(TXOdsMarginDetails marginDetails) {
+            this.marginDetails = marginDetails;
+            return this;
+        }
+
+        public TXOdsReferenceDataDetailsBuilder taxDetails(TXOdsTaxDetails taxDetails) {
+            this.taxDetails = taxDetails;
+            return this;
+        }
+
+        public TXOdsReferenceDataDetailsBuilder transactionDetails(TXOdsTransactionDetails transactionDetails) {
+            this.transactionDetails = transactionDetails;
+            return this;
+        }
+
+        public TXOdsReferenceDataDetailsBuilder transactionSHIDetails(List<TXOdsTransactionSHIDetails> transactionSHIDetails) {
+            this.transactionSHIDetails = transactionSHIDetails;
+            return this;
+        }
+
+        public TXOdsReferenceDataDetailsBuilder interfaceDetails(TXOdsInterfacedetails interfaceDetails) {
+            this.interfaceDetails = interfaceDetails;
+            return this;
+        }
+
+        public TXOdsReferenceDataDetailsBuilder sanctionsDetails(TXOdsSanctionsDetails sanctionsDetails) {
+            this.sanctionsDetails = sanctionsDetails;
+            return this;
+        }
+
+        public TXOdsReferenceDataDetailsBuilder outwardPaymentDetails(TXOdsOutwardPaymentDetails outwardPaymentDetails) {
+            this.outwardPaymentDetails = outwardPaymentDetails;
+            return this;
+        }
+
+        public TXOdsReferenceDataDetailsBuilder adviceDetails(List<TXOdsAdviceDetail> adviceDetails) {
+            this.adviceDetails = adviceDetails;
+            return this;
+        }
+
+        public TXOdsReferenceDataDetailsBuilder journalDetails(TXOdsL1JournalDetails journalDetails) {
+            this.journalDetails = journalDetails;
+            return this;
+        }
+
+        public TXOdsReferenceDataDetails build() {
+            return new TXOdsReferenceDataDetails(this.associationID, this.chargeSetupDetails, this.complianceDetails, this.riskIndicatorDetails, this.documentDetails, this.financeDetails, this.genericDetails, this.limitDetails, this.marginDetails, this.taxDetails, this.transactionDetails, this.transactionSHIDetails, this.interfaceDetails, this.sanctionsDetails, this.outwardPaymentDetails, this.adviceDetails, this.journalDetails);
+        }
+
+        public String toString() {
+            return "TXOdsReferenceDataDetails.TXOdsReferenceDataDetailsBuilder(associationID=" + this.associationID + ", chargeSetupDetails=" + this.chargeSetupDetails + ", complianceDetails=" + this.complianceDetails + ", riskIndicatorDetails=" + this.riskIndicatorDetails + ", documentDetails=" + this.documentDetails + ", financeDetails=" + this.financeDetails + ", genericDetails=" + this.genericDetails + ", limitDetails=" + this.limitDetails + ", marginDetails=" + this.marginDetails + ", taxDetails=" + this.taxDetails + ", transactionDetails=" + this.transactionDetails + ", transactionSHIDetails=" + this.transactionSHIDetails + ", interfaceDetails=" + this.interfaceDetails + ", sanctionsDetails=" + this.sanctionsDetails + ", outwardPaymentDetails=" + this.outwardPaymentDetails + ", adviceDetails=" + this.adviceDetails + ", journalDetails=" + this.journalDetails + ")";
+        }
+    }
+}
