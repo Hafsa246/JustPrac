@@ -1,0 +1,347 @@
+package com.sc.test.doc.service;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.exc.StreamReadException;
+import com.fasterxml.jackson.databind.DatabindException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.sc.doc.helper.TXDocumentHelper;
+import com.sc.doc.helper.TXEventValidator;
+import com.sc.doc.repository.TXDocumentRepository;
+import com.sc.doc.service.TXDocumentEventLogService;
+import com.sc.doc.service.impl.TXDocumentServiceImpl;
+import com.sc.document.data.TXDocumentDetail;
+import com.sc.document.events.*;
+import com.sc.doc.entity.TXOdsDocumentEO;
+import com.sc.model.*;
+import com.sc.model.doc.document.TXOdsDocumentBO;
+import com.sc.model.header.TXOdsHeader;
+import com.sc.model.header.TXOdsMessageTrackingDetails;
+import lombok.SneakyThrows;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.io.File;
+import java.io.IOException;
+import java.time.LocalDate;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.verify;
+
+@ExtendWith(MockitoExtension.class)
+public class TXDocumentServiceImplTest {
+
+    @InjectMocks
+    private TXDocumentServiceImpl documentServiceImpl;
+
+    @Mock
+    private TXDocumentHelper documentHelper;
+
+    private TXOdsDocumentBO documentBO;
+
+    @Mock
+    private TXDocumentRepository documentRepository;
+
+    @Mock
+    private TXDocumentEventLogService logService;
+    
+    @Mock
+    private TXEventValidator eventValidator;
+
+    public static final String srcResourcePath = "src/test/resources/document/";
+    public static final String messageId = "69d62a66-6925-41a2-bd1a-a1de7e285736";
+    public static final String transactionReference = "SPBTR22RFC000760";
+    public static final String stepAssociationId = "4e67e0ca-db38-4341-8a42-b02ebcb0d4e1";
+    
+    private ObjectMapper mapper = new ObjectMapper();
+
+    public TXDocumentServiceImplTest() throws StreamReadException, DatabindException, IOException {
+        mapper.registerModule(new JavaTimeModule());
+        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        documentBO = mapper.readValue(new File(srcResourcePath + "document_co.json"), TXOdsDocumentBO.class);
+    }
+
+    private TXOdsDocumentEO setDocumentEO()
+            throws IOException, StreamReadException, DatabindException, JsonProcessingException {
+        TXOdsDocumentBO documentBO = mapper.readValue(new File(srcResourcePath + "document_co.json"), TXOdsDocumentBO.class);
+        TXOdsDocumentEO documentEO = new TXOdsDocumentEO();
+        documentEO.setDocumentPayload(mapper.writeValueAsString(documentBO));
+        documentEO.setInstitution(TXInstitution.of("SC"));
+        documentEO.setBookingLocation(TXBookingLocation.of("ALL"));
+        documentEO.setConsolidatedObjectFinalised(TXBoolean.TRUE);
+        documentEO.setDocumentId(TXUUID.of("561d477c-31d1-4e53-8c22-5e0bcc28c6ca"));
+        return documentEO;
+    }
+
+    @Test
+    @SneakyThrows
+    void testTXDocumentSettlementProcessedEvent() {
+        TXDocumentSettlementProcessedEvent event = mapper.readValue(
+                new File(srcResourcePath + "TXDocumentSettlementProcessedEvent.json"),
+                TXDocumentSettlementProcessedEvent.class);
+        lenient().when(documentHelper.populateDocumentBO(setDocumentEO(), event.getTransactionTracker(),
+                event.getTxStepDetails(), "TXDocumentSettlementProcessedEvent")).thenReturn(documentBO);
+        String messageIdentifier = TXUUID.randomUUID().getValue();
+        documentServiceImpl.processEvent(event, messageIdentifier);
+
+    }
+
+    @Test
+    @SneakyThrows
+    void testTXDocumentSettlementFinalizedEvent() {
+        TXDocumentSettlementFinalizedEvent event = mapper.readValue(
+                new File(srcResourcePath + "TXDocumentSettlementFinalizedEvent.json"),
+                TXDocumentSettlementFinalizedEvent.class);
+        lenient().when(documentHelper.consolidateEvent(event, documentBO.getPayload()))
+                .thenReturn(documentBO.getPayload());
+        lenient().when(documentHelper.populateDocumentBO(setDocumentEO(), event.getTransactionTracker(),
+                event.getTxStepDetails(), "TXDocumentSettlementFinalizedEvent")).thenReturn(documentBO);
+        String messageIdentifier = TXUUID.randomUUID().getValue();
+        documentServiceImpl.processEvent(event, messageIdentifier);
+    }
+
+    @Test
+    @SneakyThrows
+    void testTXDocumentFinanceFinalizedEvent() {
+        TXDocumentSettlementFinalizedEvent event = mapper.readValue(
+                new File(srcResourcePath + "TXDocumentFinanceFinalizedEvent.json"),
+                TXDocumentSettlementFinalizedEvent.class);
+        lenient().when(documentHelper.consolidateEvent(event, documentBO.getPayload()))
+                .thenReturn(documentBO.getPayload());
+        lenient().when(documentHelper.populateDocumentBO(setDocumentEO(), event.getTransactionTracker(),
+                event.getTxStepDetails(), "TXDocumentFinanceFinalizedEvent")).thenReturn(documentBO);
+        String messageIdentifier = TXUUID.randomUUID().getValue();
+        documentServiceImpl.processEvent(event, messageIdentifier);
+    }
+
+
+    @Test
+    @SneakyThrows
+    void testTXDocumentFinanceProcessedEvent() {
+        TXDocumentSettlementFinalizedEvent event = mapper.readValue(
+                new File(srcResourcePath + "TXDocumentFinanceProcessedEvent.json"),
+                TXDocumentSettlementFinalizedEvent.class);
+        lenient().when(documentHelper.consolidateEvent(event, documentBO.getPayload()))
+                .thenReturn(documentBO.getPayload());
+        lenient().when(documentHelper.populateDocumentBO(setDocumentEO(), event.getTransactionTracker(),
+                event.getTxStepDetails(), "TXDocumentFinanceProcessedEvent")).thenReturn(documentBO);
+        String messageIdentifier = TXUUID.randomUUID().getValue();
+        documentServiceImpl.processEvent(event, messageIdentifier);
+    }
+
+    @Test
+    @SneakyThrows
+    void testProcessTXDocumentUpdatedEvent() {
+        TXDocumentUpdatedEvent docUpdateEvent = mapper.readValue(
+                new File(srcResourcePath + "TXDocumentUpdatedEvent.json"),
+                TXDocumentUpdatedEvent.class);
+        documentBO = mapper.readValue(new File(srcResourcePath + "document_co.json"), TXOdsDocumentBO.class);
+
+        lenient().when(documentHelper.consolidateEvent(docUpdateEvent, documentBO.getPayload()))
+                .thenReturn(documentBO.getPayload());
+        lenient().when(documentHelper.populateDocumentBO(setDocumentEO(), docUpdateEvent.getTransactionTracker(),
+                docUpdateEvent.getTxStepDetails(), "TXDocumentUpdatedEvent")).thenReturn(documentBO);
+        documentServiceImpl.processEvent(docUpdateEvent, documentBO.getHeader().getMessageTrackingDetails().getMessageId());
+
+    }
+
+    @Test
+    @SneakyThrows
+    void testProcessTXBulkDocumentEligibilityCheckedEvent(){
+        TXBulkDocumentEligibilityCheckedEvent bulkDoctElCheckEvent = mapper.readValue(
+                new File(srcResourcePath + "TXBulkDocumentEligibilityCheckedEvent.json"),
+                TXBulkDocumentEligibilityCheckedEvent.class);
+
+        documentBO = mapper.readValue(new File(srcResourcePath + "document_co.json"), TXOdsDocumentBO.class);
+        lenient().when(documentHelper.consolidateEvent(bulkDoctElCheckEvent, documentBO.getPayload()))
+                .thenReturn(documentBO.getPayload());
+        lenient().when(documentHelper.populateDocumentBO(setDocumentEO(), bulkDoctElCheckEvent.getTransactionTracker(),
+                bulkDoctElCheckEvent.getTxStepDetails(), "TXBulkDocumentEligibilityCheckedEvent")).thenReturn(documentBO);
+
+        documentServiceImpl.processEvent(bulkDoctElCheckEvent, documentBO.getHeader().getMessageTrackingDetails().getMessageId());
+
+    }
+
+    @Test
+    @SneakyThrows
+    void testProcessTXDocumentEligibilityCheckedEvent(){
+        TXDocumentEligibilityCheckedEvent doctElCheckEvent = mapper.readValue(
+                new File(srcResourcePath + "TXDocumentEligibilityCheckedEvent.json"),
+                TXDocumentEligibilityCheckedEvent.class);
+
+        documentBO = mapper.readValue(new File(srcResourcePath + "document_co.json"), TXOdsDocumentBO.class);
+        lenient().when(documentHelper.consolidateEvent(doctElCheckEvent, documentBO.getPayload()))
+                .thenReturn(documentBO.getPayload());
+        lenient().when(documentHelper.populateDocumentBO(setDocumentEO(), doctElCheckEvent.getTransactionTracker(),
+                doctElCheckEvent.getTxStepDetails(), "TXDocumentEligibilityCheckedEvent")).thenReturn(documentBO);
+
+        documentServiceImpl.processEvent(doctElCheckEvent, documentBO.getHeader().getMessageTrackingDetails().getMessageId());
+
+    }
+
+    @Test
+    @SneakyThrows
+    void testProcessTXFinalizedDocumentEligibilityEvent(){
+        TXFinalizedDocumentEligibilityEvent finalizeDocCheckEvent = mapper.readValue(
+                new File(srcResourcePath + "TXFinalizedDocumentEligibilityEvent.json"),
+                TXFinalizedDocumentEligibilityEvent.class);
+
+        documentBO = mapper.readValue(new File(srcResourcePath + "document_co.json"), TXOdsDocumentBO.class);
+        lenient().when(documentHelper.consolidateEvent(finalizeDocCheckEvent, documentBO.getPayload()))
+                .thenReturn(documentBO.getPayload());
+        lenient().when(documentHelper.populateDocumentBO(setDocumentEO(), finalizeDocCheckEvent.getTransactionTracker(),
+                finalizeDocCheckEvent.getTxStepDetails(), "TXFinalizedDocumentEligibilityEvent")).thenReturn(documentBO);
+
+        documentServiceImpl.processEvent(finalizeDocCheckEvent, documentBO.getHeader().getMessageTrackingDetails().getMessageId());
+
+    }
+
+    @Test
+    @SneakyThrows
+    void testProcessTXDocumentFinanceProcessedEvent(){
+        TXDocumentFinanceProcessedEvent financeProcessedEvent = mapper.readValue(
+                new File(srcResourcePath + "TXDocumentFinanceProcessedEvent.json"),
+                TXDocumentFinanceProcessedEvent.class);
+
+        documentBO = mapper.readValue(new File(srcResourcePath + "document_co.json"), TXOdsDocumentBO.class);
+        lenient().when(documentHelper.consolidateEvent(financeProcessedEvent, documentBO.getPayload()))
+                .thenReturn(documentBO.getPayload());
+        lenient().when(documentHelper.populateDocumentBO(setDocumentEO(), financeProcessedEvent.getTransactionTracker(),
+                financeProcessedEvent.getTxStepDetails(), "TXDocumentFinanceProcessedEvent")).thenReturn(documentBO);
+
+        documentServiceImpl.processEvent(financeProcessedEvent, documentBO.getHeader().getMessageTrackingDetails().getMessageId());
+    }
+
+    @Test
+    @SneakyThrows
+    void testProcessTXDocumentFinanceFinalizedEvent(){
+        TXDocumentFinanceFinalizedEvent financeFinalizedEvent = mapper.readValue(
+                new File(srcResourcePath + "TXDocumentFinanceFinalizedEvent.json"),
+                TXDocumentFinanceFinalizedEvent.class);
+
+        documentBO = mapper.readValue(new File(srcResourcePath + "document_co.json"), TXOdsDocumentBO.class);
+        lenient().when(documentHelper.consolidateEvent(financeFinalizedEvent, documentBO.getPayload()))
+                .thenReturn(documentBO.getPayload());
+        lenient().when(documentHelper.populateDocumentBO(setDocumentEO(), financeFinalizedEvent.getTransactionTracker(),
+                financeFinalizedEvent.getTxStepDetails(), "TXDocumentFinanceFinalizedEvent")).thenReturn(documentBO);
+
+        documentServiceImpl.processEvent(financeFinalizedEvent, documentBO.getHeader().getMessageTrackingDetails().getMessageId());
+    }
+    
+    @Test
+    @SneakyThrows
+    void testProcessTXDocumentCancelProcessedEvent() {
+    	TXDocumentCancelProcessedEvent event = new TXDocumentCancelProcessedEvent();
+    	event.setTxStepDetails(populateStepDetails());
+    	event.setDocumentDetails(populateDocumentDetails());
+    	documentBO.getPayload().getTransactionHeader().setTransactionDate(TXDate.of(LocalDate.now()));
+    	when(logService.fetchAndCheckEvent(messageId)).thenReturn(true);
+    	when(documentHelper.populateDocumentBO(any(),any(),any(),any())).thenReturn(documentBO);
+    	documentServiceImpl.processEvent(event, messageId);
+    }
+    
+    @Test
+    @SneakyThrows
+    void testProcessTXDocumentCancelFinalizedEvent() {
+    	TXDocumentCancelFinalizedEvent event = new TXDocumentCancelFinalizedEvent();
+    	event.setTxStepDetails(populateStepDetails());
+    	event.setDocumentDetails(populateDocumentDetails());
+    	documentBO.getPayload().getTransactionHeader().setTransactionDate(TXDate.of(LocalDate.now()));
+    	when(logService.fetchAndCheckEvent(messageId)).thenReturn(true);
+    	when(documentHelper.populateDocumentBO(any(),any(),any(),any())).thenReturn(documentBO);
+    	documentServiceImpl.processEvent(event, messageId);
+    }
+
+	private TXDocumentDetail populateDocumentDetails() {
+		return TXDocumentDetail.builder().documentID(TXUUID.of("561d477c-31d1-4e53-8c22-5e0bcc28c6ca")).build();
+	}
+
+	private TXStepDetails populateStepDetails() {
+		return TXStepDetails.builder().stepAssociationID(TXUUID.of(stepAssociationId)).stepNumber(TXStepNumber.of("NEW001"))
+				.txTransactionDetails(TXTransactionDetails.builder().institution(TXInstitution.of("SC"))
+						.transactionReference(TXTransactionReference.of(transactionReference))
+						.txBookingLocation(TXBookingLocation.of("SG01"))
+						.build())
+				.build();
+	}
+
+	@Test
+    @SneakyThrows
+    void testSaveOperationConsolidate(){
+        TXOdsDocumentBO documentBO = mapper.readValue(new File(srcResourcePath + "document_co.json"), TXOdsDocumentBO.class);
+        String documentBOJson = mapper.writeValueAsString(documentBO);
+        documentServiceImpl.saveOperationConsolidateObject(documentBOJson,documentBO, null);
+        verify(documentRepository).saveAndFlush(any(TXOdsDocumentEO.class));
+    }
+
+    @Test
+    @SneakyThrows
+    void testCheckIfDocumentEOExists(){
+        TXOdsDocumentEO documentEO = new TXOdsDocumentEO();
+        when(documentRepository.findByTransactionReferenceAndStepNumberAndStepAssociationIdAndDocumentId(any(), any(), any(), any()))
+                .thenReturn(Optional.of(documentEO));
+
+        TXOdsDocumentEO result = documentServiceImpl.checkIfDocumentEOExists(
+                TXTransactionReference.of("TX123"),
+                TXStepNumber.of("1"),
+                TXUUID.of("stepAssociationId"),
+                TXUUID.of("documentId")
+        );
+
+        assertEquals(documentEO, result);
+        verify(documentRepository).findByTransactionReferenceAndStepNumberAndStepAssociationIdAndDocumentId(any(), any(), any(), any());
+    }
+
+
+
+    @SneakyThrows
+    private Optional<TXOdsDocumentEO> constructDocumentEO() {
+
+        TXOdsDocumentEO documentEO = new TXOdsDocumentEO();
+        documentEO.setBookingLocation(TXBookingLocation.of("SG01"));
+        documentEO.setInstitution(TXInstitution.of("SC"));
+        documentEO.setMessageId(messageId);
+        documentEO.setBusinessDate(
+                documentBO.getHeader().getTransactionTrackingDetails().getStepDetails().getTransactionDate());
+        documentEO.setDocumentId(TXUUID.of("d2b5b2d8-9729-4e32-b364-cdad88323bf3"));
+        documentEO.setDocumentPayload(mapper.writeValueAsString(documentBO));
+        return Optional.of(documentEO);
+    }
+
+    @Test
+    @SneakyThrows
+    void testTXDocumentFinanceSettlementProcessedEvent() {
+        TXDocumentFinanceSettlementProcessedEvent event = mapper.readValue(
+                new File(srcResourcePath + "TXDocumentFinanceSettlementProcessedEvent.json"),
+                TXDocumentFinanceSettlementProcessedEvent.class);
+        lenient().when(documentHelper.populateDocumentBO(setDocumentEO(), event.getTransactionTracker(),
+                event.getTxStepDetails(), "TXDocumentFinanceSettlementProcessedEvent")).thenReturn(documentBO);
+        String messageIdentifier = TXUUID.randomUUID().getValue();
+        documentServiceImpl.processEvent(event, messageIdentifier);
+
+    }
+
+    @Test
+    @SneakyThrows
+    void testTXDocumentFinanceSettlementFinalizedEvent() {
+        TXDocumentFinanceSettlementFinalizedEvent event = mapper.readValue(
+                new File(srcResourcePath + "TXDocumentFinanceSettlementFinalizedEvent.json"),
+                TXDocumentFinanceSettlementFinalizedEvent.class);
+        lenient().when(documentHelper.consolidateEvent(event, documentBO.getPayload()))
+                .thenReturn(documentBO.getPayload());
+        lenient().when(documentHelper.populateDocumentBO(setDocumentEO(), event.getTransactionTracker(),
+                event.getTxStepDetails(), "TXDocumentFinanceSettlementFinalizedEvent")).thenReturn(documentBO);
+        String messageIdentifier = TXUUID.randomUUID().getValue();
+        documentServiceImpl.processEvent(event, messageIdentifier);
+    }
+
+}
